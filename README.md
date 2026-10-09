@@ -12,7 +12,7 @@ Clip & Play doesn't download, stream or provide any music. It only works with fi
 - Cuts songs out of a longer file: set a start and end for each song, preview it, and save each one as its own track
 - Groups tracks into collections, with search, shuffle and repeat
 - Lets you arrange your own play order: drag the handle on a track, or focus it and use the up and down arrow keys
-- Has a sleep timer that stops playback at the end of the current song or after 15, 30 or 60 minutes
+- Has a sleep timer that stops playback at the end of the current song, after 15, 30 or 60 minutes, or after a custom time in minutes and seconds
 - Shows the current track on the lock screen and responds to headphone controls where the browser supports it
 - Backs up your whole library to a file and restores it later
 - Works offline after your first visit

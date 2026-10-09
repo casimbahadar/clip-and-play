@@ -329,6 +329,14 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
       <button type="button" class="btn btn-quiet" data-sleep="15">15 minutes</button>
       <button type="button" class="btn btn-quiet" data-sleep="30">30 minutes</button>
       <button type="button" class="btn btn-quiet" data-sleep="60">60 minutes</button>
+    </div>
+    <label for="slMin">Custom time</label>
+    <div class="inrow">
+      <input class="field" id="slMin" inputmode="numeric" placeholder="Minutes" aria-label="Minutes" autocomplete="off">
+      <input class="field" id="slSec" inputmode="numeric" placeholder="Seconds" aria-label="Seconds" autocomplete="off">
+      <button type="button" class="btn btn-primary" id="slGo">Start</button>
+    </div>
+    <div class="stack">
       <button type="button" class="btn btn-danger" data-sleep="off" id="slOff">Turn off timer</button>
     </div>
     <div class="actions">
@@ -354,7 +362,7 @@ const E = {
   cStart:$('#cStart'),cEnd:$('#cEnd'),cStartNow:$('#cStartNow'),cEndNow:$('#cEndNow'),cPreview:$('#cPreview'),cName:$('#cName'),cCol:$('#cCol'),
   bkRow:$('#bkRow'),bkNote:$('#bkNote'),bkBtn:$('#bkBtn'),rsBtn:$('#rsBtn'),emptyRestore:$('#emptyRestore'),restoreFile:$('#restoreFile'),
   bk:$('#bkDlg'),bkProg:$('#bkProg'),bkParts:$('#bkParts'),bkClose:$('#bkClose'),
-  sleepBtn:$('#sleepBtn'),sleepLeft:$('#sleepLeft'),sleepDlg:$('#sleepDlg'),slInfo:$('#slInfo'),slOpts:$('#slOpts'),slOff:$('#slOff'),slClose:$('#slClose'),
+  sleepBtn:$('#sleepBtn'),sleepLeft:$('#sleepLeft'),sleepDlg:$('#sleepDlg'),slInfo:$('#slInfo'),slOpts:$('#slOpts'),slOff:$('#slOff'),slClose:$('#slClose'),slMin:$('#slMin'),slSec:$('#slSec'),slGo:$('#slGo'),
   cAdd:$('#cAdd'),cList:$('#cList'),cHow:$('#cHow'),cProg:$('#cProg'),cCancel:$('#cCancel'),cSave:$('#cSave')
 };
 const SVG = (inner, filled) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${filled ? `<g fill="currentColor">${inner}</g>` : `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`}</svg>`;
@@ -1323,26 +1331,35 @@ let sleep = null; // { mode: 'track' } or { mode: 'time', end: ms }
 function sleepText(){
   if (!sleep) return '';
   if (sleep.mode === 'track') return 'Song end';
-  return Math.max(1, Math.ceil((sleep.end - Date.now()) / 60000)) + 'm';
+  return fmt(Math.max(0, Math.ceil((sleep.end - Date.now()) / 1000)));
 }
 function updateSleep(){
   const txt = sleepText();
   if (E.sleepLeft.textContent !== txt) E.sleepLeft.textContent = txt;
   E.sleepBtn.setAttribute('aria-pressed', String(!!sleep));
-  E.sleepBtn.setAttribute('aria-label', !sleep ? 'Sleep timer' : sleep.mode === 'track' ? 'Sleep timer: stops at the end of this song' : `Sleep timer: ${txt.replace('m', '')} minutes left`);
+  E.sleepBtn.setAttribute('aria-label', !sleep ? 'Sleep timer' : sleep.mode === 'track' ? 'Sleep timer: stops at the end of this song' : `Sleep timer: ${txt} left`);
 }
 function checkSleep(){
   if (sleep && sleep.mode === 'time' && Date.now() >= sleep.end){
     sleep = null; audio.pause(); updateSleep(); toast('Sleep timer stopped playback.');
   } else if (sleep) updateSleep();
 }
-setInterval(checkSleep, 15000);
+setInterval(checkSleep, 1000);
 E.sleepBtn.addEventListener('click', () => {
-  E.slInfo.textContent = !sleep ? 'Stop playing after:' : sleep.mode === 'track' ? 'Set to stop at the end of this song. Change it to:' : `About ${sleepText().replace('m', '')} minutes left. Change it to:`;
+  E.slInfo.textContent = !sleep ? 'Stop playing after:' : sleep.mode === 'track' ? 'Set to stop at the end of this song. Change it to:' : `${sleepText()} left. Change it to:`;
   E.slOff.hidden = !sleep;
   E.sleepDlg.showModal();
 });
 E.slClose.addEventListener('click', () => E.sleepDlg.close());
+E.slGo.addEventListener('click', () => {
+  const m = E.slMin.value.trim() === '' ? 0 : Number(E.slMin.value), s = E.slSec.value.trim() === '' ? 0 : Number(E.slSec.value);
+  const total = Math.round(m * 60 + s);
+  if (!isFinite(total) || m < 0 || s < 0 || total < 1 || total > 24 * 3600){ E.slInfo.textContent = 'Enter a time, like 0 minutes and 30 seconds.'; return; }
+  sleep = { mode: 'time', end: Date.now() + total * 1000 };
+  updateSleep(); E.sleepDlg.close();
+  toast(`Playback will stop in ${fmt(total)}.`);
+});
+[E.slMin, E.slSec].forEach(f => f.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); E.slGo.click(); } }));
 E.slOpts.addEventListener('click', e => {
   const b = e.target.closest('button[data-sleep]'); if (!b) return;
   const v = b.dataset.sleep;
