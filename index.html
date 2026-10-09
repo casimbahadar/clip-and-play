@@ -40,7 +40,10 @@
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);touch-action:manipulation}
 /* Solid strip behind the phone's clock and Dynamic Island so the list doesn't show through it.
    It overlays the area the status bar already covers, so the list keeps its full height. */
-.sbar{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:15;pointer-events:none}
+/* The library scrolls inside its own area, which starts below the phone's clock and Dynamic Island,
+   so songs can never slide up underneath them. The page itself never scrolls. */
+html,body{overflow:hidden}
+.scroller{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .ver{padding:24px var(--gut) 0;color:var(--muted);font-size:13px;margin:0}
 body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--font);-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit}
@@ -71,7 +74,7 @@ svg{display:block}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
 .count{padding:12px var(--gut) 4px;color:var(--muted);font-size:14px;margin:0}
-.list{list-style:none;margin:0;padding:0 var(--gut)}
+.list{list-style:none;margin:0;padding:0 var(--gut);overflow-anchor:none}
 .list li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
 .row{flex:1;min-width:0;display:grid;grid-template-columns:16px minmax(0,1fr) auto;column-gap:12px;align-items:center;text-align:left;background:none;border:0;padding:12px 0;min-height:60px;cursor:pointer}
 .cur{color:var(--accent);visibility:hidden}
@@ -181,7 +184,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
 </style>
 </head>
 <body>
-<div class="sbar" aria-hidden="true"></div>
+<div class="scroller" id="scroller">
 <div class="wrap">
   <header class="top">
     <h1 class="mark">Clip &amp; Play</h1>
@@ -212,9 +215,10 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.1</p>
+      <p class="ver">Clip &amp; Play v1.1.1</p>
     </section>
   </main>
+</div>
 </div>
 
 <div class="now" id="now" hidden>
@@ -358,7 +362,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
 'use strict';
 const $ = s => document.querySelector(s);
 const E = {
-  list:$('#list'),count:$('#count'),chips:$('#chips'),search:$('#search'),file:$('#file'),addBtn:$('#addBtn'),
+  scroller:$('#scroller'),list:$('#list'),count:$('#count'),chips:$('#chips'),search:$('#search'),file:$('#file'),addBtn:$('#addBtn'),
   empty:$('#empty'),emptyAdd:$('#emptyAdd'),library:$('#library'),loading:$('#loading'),now:$('#now'),npTitle:$('#npTitle'),npSub:$('#npSub'),
   seek:$('#seek'),tCur:$('#tCur'),tDur:$('#tDur'),play:$('#play'),prev:$('#prev'),next:$('#next'),
   shuffle:$('#shuffle'),repeat:$('#repeat'),toast:$('#toast'),storage:$('#storage'),memNote:$('#memNote'),cols:$('#cols'),
@@ -1323,26 +1327,29 @@ function moveStep(id, dir){
 function startDrag(ev, li, handle){
   if (ev.pointerType === 'mouse' && ev.button !== 0) return;
   ev.preventDefault();
-  let originY = ev.clientY, lastScroll = window.scrollY;
+  const sc = E.scroller;
+  let originY = ev.clientY, lastScroll = sc.scrollTop;
   li.classList.add('lift');
   try { handle.setPointerCapture(ev.pointerId); } catch (e) {}
   const move = e => {
-    originY -= window.scrollY - lastScroll; lastScroll = window.scrollY;
+    originY -= sc.scrollTop - lastScroll; lastScroll = sc.scrollTop;
     let dy = e.clientY - originY;
     let prev = li.previousElementSibling, next = li.nextElementSibling;
     while (prev && prev.dataset.id && dy < -prev.offsetHeight / 2){ const h = prev.offsetHeight; E.list.insertBefore(li, prev); originY -= h; dy += h; prev = li.previousElementSibling; }
     while (next && next.dataset.id && dy > next.offsetHeight / 2){ const h = next.offsetHeight; E.list.insertBefore(next, li); originY += h; dy -= h; next = li.nextElementSibling; }
     li.style.transform = `translateY(${dy}px)`;
     const bottom = window.innerHeight - (E.now.hidden ? 0 : E.now.offsetHeight);
-    if (e.clientY < 72) window.scrollBy(0, -12); else if (e.clientY > bottom - 72) window.scrollBy(0, 12);
+    const topEdge = sc.getBoundingClientRect().top;
+    if (e.clientY < topEdge + 72) sc.scrollBy(0, -12); else if (e.clientY > bottom - 72) sc.scrollBy(0, 12);
   };
   const up = () => {
-    handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up);
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
     li.classList.remove('lift'); li.style.transform = '';
     const p = li.previousElementSibling, n = li.nextElementSibling;
     commitMove(li.dataset.id, p && p.dataset.id, n && n.dataset.id);
   };
-  handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+  // Listen on the window: moving the row in the list can make the browser drop the handle's hold on the pointer
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 }
 
 // ---------- sleep timer ----------
