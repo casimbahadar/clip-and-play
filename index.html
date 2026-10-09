@@ -38,6 +38,9 @@
 }
 *,*::before,*::after{box-sizing:inherit}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);touch-action:manipulation}
+/* Solid strip behind the phone's clock and Dynamic Island so the list doesn't show through it.
+   It overlays the area the status bar already covers, so the list keeps its full height. */
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:15;pointer-events:none}
 body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--font);-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -815,19 +818,31 @@ E.repeat.addEventListener('click', () => {
   repeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
   ls.set('cap.repeat', repeat); applyToggles(); prefetchNext();
 });
+let scrubAt = 0;
 E.seek.addEventListener('input', () => {
-  scrubbing = true;
+  scrubbing = true; scrubAt = Date.now();
   const d = trackDur(cur());
   E.tCur.textContent = fmt(E.seek.value / 1000 * d);
   E.seek.style.setProperty('--p', (E.seek.value / 10) + '%');
 });
-E.seek.addEventListener('change', () => {
+// Finish a seek on whichever "let go" signal the phone sends first, so the display can't get stuck
+function endScrub(){
+  if (!scrubbing) return;
   const d = trackDur(cur());
   if (d) audio.currentTime = E.seek.value / 1000 * d;
   scrubbing = false; updateTime();
-});
+}
+['change', 'pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur'].forEach(ev => E.seek.addEventListener(ev, endScrub));
+// Refresh the time display on a steady clock too, in case the phone skips its own time updates
+setInterval(() => {
+  if (scrubbing && Date.now() - scrubAt > 4000) endScrub();
+  if (currentId && !audio.paused && document.visibilityState === 'visible'){ updateTime(); mediaPos(); }
+}, 500);
 E.search.addEventListener('input', () => { query = E.search.value; renderList(); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') savePos(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') savePos();
+  else { updateNow(); checkSleep(); }
+});
 window.addEventListener('pagehide', savePos);
 
 // ---------- add music ----------
@@ -1066,7 +1081,8 @@ E.cPlay.addEventListener('click', () => { if (!cut.el) return; cut.previewEnd = 
 E.cBack.addEventListener('click', () => { if (cut.el) cut.el.currentTime = Math.max(0, cut.el.currentTime - 5); });
 E.cFwd.addEventListener('click', () => { if (cut.el) cut.el.currentTime = Math.min(cDur(), cut.el.currentTime + 5); });
 E.cSeek.addEventListener('input', () => { cut.scrub = true; E.cTCur.textContent = fmt(E.cSeek.value / 1000 * cDur()); E.cSeek.style.setProperty('--p', (E.cSeek.value / 10) + '%'); });
-E.cSeek.addEventListener('change', () => { if (cut.el && cDur()) cut.el.currentTime = E.cSeek.value / 1000 * cDur(); cut.scrub = false; cTime(); });
+const endCutScrub = () => { if (!cut.scrub) return; if (cut.el && cDur()) cut.el.currentTime = E.cSeek.value / 1000 * cDur(); cut.scrub = false; cTime(); };
+['change', 'pointerup', 'pointercancel', 'touchend', 'touchcancel', 'blur'].forEach(ev => E.cSeek.addEventListener(ev, endCutScrub));
 E.cStartNow.addEventListener('click', () => { if (cut.el) E.cStart.value = fmtT(cut.el.currentTime); });
 E.cEndNow.addEventListener('click', () => { if (cut.el) E.cEnd.value = fmtT(cut.el.currentTime); });
 function readRange(){
