@@ -159,7 +159,7 @@ dialog:focus-visible{outline:none}
 .grab::before{content:"";display:block;width:40px;height:5px;margin:7px auto 0;border-radius:3px;background:var(--line)}
 .np-text{touch-action:none;cursor:pointer}
 .now .np-head,.lyp-top,.lyp-head{-webkit-user-select:none;user-select:none}
-.lyp{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);bottom:0;z-index:4;background:var(--bg);display:flex;flex-direction:column;transform:translateY(110%);transition:transform .25s ease}
+.lyp{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);bottom:0;z-index:4;background:var(--ly-bg,var(--bg));background-image:var(--ly-bgimg,none);display:flex;flex-direction:column;transform:translateY(110%);transition:transform .25s ease}
 .lyp.open{transform:none}
 .lyp-top{display:flex;justify-content:center;touch-action:none}
 .lyp-top .grab{position:static;transform:none;width:120px;height:28px}
@@ -169,12 +169,50 @@ dialog:focus-visible{outline:none}
 .lyp-sub{margin:0;color:var(--muted);font-size:14px;min-height:20px}
 .lyp-body{position:relative;flex:1;overflow-y:auto;overscroll-behavior:contain;padding:8px var(--gut) 40vh;max-width:760px;width:100%;margin:0 auto}
 .ly{list-style:none;margin:0;padding:0}
-.ll{font:600 22px/1.4 var(--font);color:var(--muted);padding:8px 0;overflow-wrap:anywhere}
+.ll{font:var(--ly-fstyle,normal) var(--ly-weight,600) var(--ly-size,22px)/var(--ly-lh,1.4) var(--ly-font,var(--font));color:var(--ly-dim,var(--muted));padding:8px 0;overflow-wrap:anywhere;text-transform:var(--ly-case,none);letter-spacing:var(--ly-track,normal);text-align:var(--ly-align,start)}
+.ll:nth-child(odd){transform:rotate(var(--ly-rot,0deg))}
+.ll:nth-child(even){transform:rotate(calc(var(--ly-rot,0deg) * -1))}
 .ly.timed .ll{cursor:pointer}
-.ll.lpast{color:var(--ink);opacity:.6}
-.ll.lcur{color:var(--ink)}
-.ll.lcur .w{background:linear-gradient(90deg,var(--accent) var(--p,0%),var(--ink) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ll.lpast{color:var(--ly-ink,var(--ink));opacity:var(--ly-past,.6)}
+.ll.lcur{color:var(--ly-cur,var(--ly-ink,var(--ink)));filter:var(--ly-filter,none);background:var(--ly-pill,transparent);border-radius:var(--r-m);padding:8px var(--ly-pillpad,0px);margin:0 calc(var(--ly-pillpad,0px) * -1);transform:skewX(var(--ly-skew,0deg))}
+.ll.lcur::before{content:var(--ly-prefix,none)}
+.ll.lcur .w{-webkit-text-stroke:var(--ly-stroke,0 transparent);background:linear-gradient(90deg,var(--ly-on,var(--accent)) var(--p,0%),var(--ly-cur,var(--ly-ink,var(--ink))) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
 .ll.gap{letter-spacing:.3em}
+.lt{display:block;font:600 13px/1.4 var(--font);color:var(--ly-dim,var(--muted));text-transform:none;letter-spacing:normal;margin-bottom:2px}
+.ll.est .lt{color:var(--ly-on,var(--accent))}
+.ll.lsel{outline:2px solid var(--ly-on,var(--accent));outline-offset:4px;border-radius:var(--r-s)}
+/* Lyric styles: each sets fonts and colors for the lyrics view, chosen per song */
+[data-style="cute"]{--ly-bg:#2A1B3D;--ly-on:#FF8FC7;--ly-ink:#FBEFFF;--ly-dim:#C9B3E6;--ly-weight:400;--ly-size:24px;--ly-align:center;--ly-pill:rgba(255,143,199,.16);--ly-pillpad:14px;--ly-font:"Jua","Hachi Maru Pop",var(--font)}
+[data-style="elegant"]{--ly-bg:#17130E;--ly-on:#E8C15A;--ly-ink:#F3E9D2;--ly-dim:#B5A88E;--ly-weight:600;--ly-size:25px;--ly-align:center;--ly-lh:1.6;--ly-fstyle:italic;--ly-past:.4;--ly-filter:drop-shadow(0 0 10px rgba(232,193,90,.45));--ly-font:"Playfair Display","Gowun Batang","Shippori Mincho",var(--font)}
+[data-style="bold"]{--ly-bg:#0B0B12;--ly-on:#3DF5FF;--ly-ink:#FFFFFF;--ly-dim:#6F7890;--ly-weight:400;--ly-size:34px;--ly-lh:1.1;--ly-case:uppercase;--ly-past:.3;--ly-font:"Anton","Black Han Sans","Dela Gothic One",var(--font)}
+[data-style="retro"]{--ly-bg:#101820;--ly-on:#7CFC6B;--ly-ink:#E3F5E1;--ly-dim:#7FA38A;--ly-weight:500;--ly-size:22px;--ly-filter:drop-shadow(2px 2px 0 #0B4D23);--ly-bgimg:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px);--ly-font:"Pixelify Sans","DotGothic16",var(--font)}
+[data-style="dreamy"]{--ly-bg:#241C3A;--ly-on:#B9A7FF;--ly-ink:#F4F0FF;--ly-dim:#A99CC9;--ly-weight:600;--ly-size:23px;--ly-align:center;--ly-lh:1.8;--ly-filter:drop-shadow(0 0 12px rgba(185,167,255,.55));--ly-font:"Quicksand","Gowun Dodum","M PLUS Rounded 1c",var(--font)}
+[data-style="handwritten"]{--ly-bg:#1E1A16;--ly-on:#FFB86B;--ly-ink:#FFF6EA;--ly-dim:#BFAF9C;--ly-weight:600;--ly-size:32px;--ly-lh:1.2;--ly-rot:-1.2deg;--ly-font:"Caveat","Nanum Pen Script","Yomogi",var(--font)}
+[data-style="neon"]{--ly-bg:#07060F;--ly-on:#FF3DF2;--ly-ink:#FDE8FF;--ly-dim:#6C5A80;--ly-weight:400;--ly-size:26px;--ly-align:center;--ly-filter:drop-shadow(0 0 6px #FF3DF2) drop-shadow(0 0 18px rgba(255,61,242,.6));--ly-font:"Tilt Neon","Do Hyeon","DotGothic16",var(--font)}
+[data-style="romantic"]{--ly-bg:#2B1418;--ly-on:#FF9AA8;--ly-ink:#FFEFF1;--ly-dim:#C9A3A9;--ly-weight:700;--ly-size:30px;--ly-align:center;--ly-lh:1.3;--ly-font:"Dancing Script","Gowun Batang","Shippori Mincho",var(--font)}
+[data-style="comic"]{--ly-bg:#1B2340;--ly-on:#FFD23F;--ly-ink:#FFFFFF;--ly-dim:#A9B4D6;--ly-weight:400;--ly-size:30px;--ly-track:.05em;--ly-stroke:1.5px #000;--ly-filter:drop-shadow(3px 3px 0 #000);--ly-rot:-1deg;--ly-font:"Bangers","Gaegu","Kosugi Maru",var(--font)}
+[data-style="typewriter"]{--ly-bg:#1C1C1C;--ly-on:#E9C46A;--ly-ink:#EDE6D6;--ly-dim:#8F897D;--ly-weight:400;--ly-size:21px;--ly-lh:1.7;--ly-prefix:"\25B8  ";--ly-past:.45;--ly-font:"Special Elite","Nanum Gothic Coding","DotGothic16",var(--font)}
+[data-style="anime"]{--ly-bg:#13263A;--ly-on:#5BE3FF;--ly-ink:#FFFFFF;--ly-dim:#9FB7CC;--ly-weight:800;--ly-size:24px;--ly-skew:-8deg;--ly-filter:drop-shadow(-6px 0 0 rgba(91,227,255,.35)) drop-shadow(-12px 0 0 rgba(91,227,255,.15));--ly-font:"M PLUS Rounded 1c","Gamja Flower",var(--font)}
+[data-style="gothic"]{--ly-bg:#0A0607;--ly-on:#E0313B;--ly-ink:#EDE3DC;--ly-dim:#7D6B66;--ly-weight:400;--ly-size:28px;--ly-align:center;--ly-filter:drop-shadow(0 0 8px rgba(224,49,59,.5));--ly-font:"UnifrakturMaguntia","Song Myung","Shippori Mincho",var(--font)}
+[data-style="graffiti"]{--ly-bg:#22201F;--ly-on:#FF6B3D;--ly-ink:#FFFFFF;--ly-dim:#A59C96;--ly-weight:400;--ly-size:28px;--ly-rot:-2deg;--ly-filter:drop-shadow(2px 3px 0 rgba(0,0,0,.7));--ly-bgimg:repeating-linear-gradient(0deg,transparent 0 46px,rgba(255,255,255,.04) 46px 48px),repeating-linear-gradient(90deg,transparent 0 94px,rgba(255,255,255,.04) 94px 96px);--ly-font:"Permanent Marker","Nanum Brush Script","Yusei Magic",var(--font)}
+[data-style="horror"]{--ly-bg:#060A06;--ly-on:#7CFF4F;--ly-ink:#D9E8D2;--ly-dim:#56664F;--ly-weight:400;--ly-size:32px;--ly-align:center;--ly-track:.04em;--ly-filter:drop-shadow(0 4px 6px rgba(124,255,79,.35));--ly-font:"Creepster","Black Han Sans","Dela Gothic One",var(--font)}
+[data-style="scifi"]{--ly-bg:#050B18;--ly-on:#4FA8FF;--ly-ink:#E6F1FF;--ly-dim:#5D7393;--ly-weight:700;--ly-size:20px;--ly-case:uppercase;--ly-track:.14em;--ly-lh:1.8;--ly-filter:drop-shadow(0 0 6px rgba(79,168,255,.6));--ly-font:"Orbitron","Do Hyeon","Stick",var(--font)}
+[data-style="western"]{--ly-bg:#2A1E14;--ly-on:#F2A541;--ly-ink:#F6E7CF;--ly-dim:#A88E70;--ly-weight:400;--ly-size:24px;--ly-align:center;--ly-filter:drop-shadow(2px 2px 0 #120B05);--ly-font:"Rye","Song Myung","Kaisei Decol",var(--font)}
+[data-style="stencil"]{--ly-bg:#1D2216;--ly-on:#C7D36F;--ly-ink:#E8EDD8;--ly-dim:#7D8669;--ly-weight:400;--ly-size:27px;--ly-case:uppercase;--ly-track:.03em;--ly-past:.35;--ly-font:"Black Ops One","Black Han Sans","Dela Gothic One",var(--font)}
+[data-style="storybook"]{--ly-bg:#1B2A26;--ly-on:#9FE2BF;--ly-ink:#F2EBD9;--ly-dim:#93A69D;--ly-weight:400;--ly-size:24px;--ly-align:center;--ly-lh:1.6;--ly-filter:drop-shadow(0 0 8px rgba(159,226,191,.35));--ly-font:"Uncial Antiqua","Gowun Batang","Kaisei Decol",var(--font)}
+[data-style="kawaii"]{--ly-bg:#FFE8F3;--ly-on:#FF3D8B;--ly-ink:#5A2A4A;--ly-dim:#C08AA9;--ly-weight:400;--ly-size:26px;--ly-align:center;--ly-cur:#5A2A4A;--ly-pill:#FFFFFF;--ly-pillpad:14px;--ly-filter:drop-shadow(0 3px 0 rgba(255,61,139,.25));--ly-font:"Rampart One","Jua",var(--font)}
+[data-style="terminal"]{--ly-bg:#0B0904;--ly-on:#FFB000;--ly-ink:#FFE3A3;--ly-dim:#8A6E33;--ly-weight:400;--ly-size:28px;--ly-lh:1.25;--ly-prefix:"> ";--ly-filter:drop-shadow(0 0 5px rgba(255,176,0,.55));--ly-bgimg:repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px);--ly-font:"VT323","Nanum Gothic Coding","DotGothic16",var(--font)}
+[data-style="disco"]{--ly-bg:#1A0B2E;--ly-on:#FF8A3D;--ly-ink:#FFE9F5;--ly-dim:#8E6FA8;--ly-weight:400;--ly-size:26px;--ly-align:center;--ly-lh:1.5;--ly-case:uppercase;--ly-filter:drop-shadow(0 0 10px rgba(255,138,61,.55));--ly-font:"Monoton","Black Han Sans","Dela Gothic One",var(--font)}
+[data-style="brush"]{--ly-bg:#F4EEE3;--ly-on:#C0392B;--ly-ink:#1C1B1A;--ly-dim:#9A9288;--ly-weight:400;--ly-size:26px;--ly-align:center;--ly-lh:1.7;--ly-font:"Yuji Syuku","Nanum Brush Script",var(--font)}
+[data-style="pop"]{--ly-bg:#1A1A2E;--ly-on:#E8344E;--ly-ink:#FFFFFF;--ly-dim:#7E7E9E;--ly-weight:400;--ly-size:26px;--ly-cur:#1A1A2E;--ly-pill:#FFE14D;--ly-pillpad:12px;--ly-lh:1.3;--ly-font:"Dela Gothic One","Black Han Sans",var(--font)}
+.lyp:not([data-style="clean"]){color:var(--ly-ink)}
+.lyp:not([data-style="clean"]) .lyp-sub,.lyp:not([data-style="clean"]) .lyp-sync p{color:var(--ly-dim)}
+.lyp:not([data-style="clean"]) .icon{color:var(--ly-ink)}
+.lys-grid{display:grid;gap:12px;margin-top:16px}
+.lys-opt{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;border-radius:var(--r-m);border:2px solid transparent;background:var(--ly-bg,var(--panel-2));background-image:var(--ly-bgimg,none);color:var(--ly-ink,var(--ink));text-align:left;cursor:pointer;min-height:var(--ctl)}
+.lys-opt[aria-pressed="true"]{border-color:var(--accent)}
+.lys-name{font:600 13px var(--font);letter-spacing:.04em;text-transform:uppercase;color:var(--ly-dim,var(--muted))}
+.lys-sample{font:var(--ly-fstyle,normal) var(--ly-weight,600) var(--ly-size,22px)/1.3 var(--ly-font,var(--font));text-transform:var(--ly-case,none);letter-spacing:var(--ly-track,normal);filter:var(--ly-filter,none);-webkit-text-stroke:var(--ly-stroke,0 transparent);background:linear-gradient(90deg,var(--ly-on,var(--accent)) 55%,var(--ly-ink,var(--ink)) 55%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ly-note{color:var(--muted);margin:4px 0 12px}
 .ly-empty{padding:24px 0;text-align:center}
 .ly-empty p{color:var(--muted);margin:0 0 8px}
@@ -246,7 +284,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2</p>
+      <p class="ver">Clip &amp; Play v1.4</p>
     </section>
   </main>
 </div>
@@ -266,6 +304,18 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
       <button type="button" class="btn btn-primary" id="lySyncTap">This line starts now</button>
     </div>
     <div class="actions"><button type="button" class="btn btn-quiet" id="lySyncCancel">Stop syncing</button></div>
+  </div>
+  <div class="lyp-sync" id="lyFix" hidden>
+    <p id="lyFixInfo"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="lyFixPick" hidden>Pick another line</button>
+      <button type="button" class="btn btn-primary" id="lyFixTap" hidden>This line starts now</button>
+    </div>
+    <div class="actions"><button type="button" class="btn btn-quiet" id="lyFixDone">Done fixing</button></div>
+  </div>
+  <div class="lyp-sync" id="lyAuto" hidden>
+    <p id="lyAutoInfo" aria-live="polite"></p>
+    <div class="actions"><button type="button" class="btn btn-quiet" id="lyAutoCancel">Stop auto-sync</button></div>
   </div>
 </section>
 
@@ -425,6 +475,26 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
     </div>
   </div>
 </dialog>
+<dialog id="lyStyleDlg" aria-labelledby="lysH">
+  <div class="sheet tall">
+    <h2 id="lysH">Lyrics style</h2>
+    <p>Pick a look for this song's lyrics. Each song keeps its own.</p>
+    <div class="lys-grid" id="lyStyleOpts"></div>
+    <div class="stack"><button type="button" class="btn btn-quiet" id="lyStyleDefault">Use this style for songs without their own</button></div>
+    <div class="actions"><button type="button" class="btn btn-primary" id="lyStyleClose">Done</button></div>
+  </div>
+</dialog>
+<dialog id="lyAsDlg" aria-labelledby="lyAsH">
+  <div class="sheet">
+    <h2 id="lyAsH">Auto-sync from the audio</h2>
+    <p>A speech AI listens to this song on your device and matches what it hears to your lyrics. Your music isn't uploaded anywhere.</p>
+    <p class="hint">The first time, it downloads the AI (about 100 MB) from Hugging Face and its engine from jsDelivr, then keeps them in this browser. Each song can take a few minutes. Some lines may need fixing afterward, especially in songs that mix languages.</p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="lyAsCancel">Not now</button>
+      <button type="button" class="btn btn-primary" id="lyAsGo">Start auto-sync</button>
+    </div>
+  </div>
+</dialog>
 <datalist id="cols"></datalist>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -539,7 +609,7 @@ const server = {
       meta.asset = r.id; meta.enc = kind ? 'raw' : 'b64';
     }
     const doc = {};
-    for (const k of ['title', 'collection', 'duration', 'size', 'type', 'added', 'order', 'lyrics', 'asset', 'enc']) if (meta[k] !== undefined) doc[k] = meta[k];
+    for (const k of ['title', 'collection', 'duration', 'size', 'type', 'added', 'order', 'lyrics', 'lyStyle', 'asset', 'enc']) if (meta[k] !== undefined) doc[k] = meta[k];
     try { await server.col().doc(meta.id).set(doc); }
     catch (e){ if (payload && meta.asset){ try { await sassets.delete(meta.asset); } catch (x) {} } throw e; }
   },
@@ -792,10 +862,14 @@ function applySource(m, src, autoplay, at){
   currentUrl = src.own ? src.url : null;
   currentId = m.id; pendingSeek = at;
   audio.src = src.url;
-  updateNow(); markCurrent(); setMeta(m); savePos(); lyTrackChanged(m);
+  // Start the next song before anything else: a minimized phone only allows a quick hand-off between songs
   if (autoplay){ const p = audio.play(); if (p) p.catch(e => playErr(e, m)); }
-  prefetchNext();
+  setMeta(m); savePos(); prefetchNext();
+  // Screen updates wait until the app is visible again
+  if (document.visibilityState === 'hidden'){ uiStale = true; return; }
+  updateNow(); markCurrent(); lyTrackChanged(m);
 }
+let uiStale = false;
 async function load(id, { autoplay = true, at = 0 } = {}){
   const token = ++loadToken;
   const m = tracks.find(t => t.id === id); if (!m) return;
@@ -920,7 +994,10 @@ setInterval(() => {
 E.search.addEventListener('input', () => { query = E.search.value; renderList(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') savePos();
-  else { updateNow(); checkSleep(); }
+  else {
+    if (uiStale){ uiStale = false; markCurrent(); const m = cur(); if (m) lyTrackChanged(m); }
+    updateNow(); checkSleep();
+  }
 });
 window.addEventListener('pagehide', savePos);
 
@@ -1279,7 +1356,7 @@ const enc = new TextEncoder(), dec = new TextDecoder();
 function backupFile(items, i, n){
   let off = 0;
   const list = items.map(({ meta, blob }) => {
-    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, order: typeof meta.order === 'number' ? meta.order : null, lyrics: meta.lyrics || null, offset: off, length: blob.size };
+    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, order: typeof meta.order === 'number' ? meta.order : null, lyrics: meta.lyrics || null, lyStyle: meta.lyStyle || null, offset: off, length: blob.size };
     off += blob.size; return h;
   });
   const head = enc.encode(JSON.stringify({ app: 'clip-and-play', version: 1, part: i + 1, parts: n, created: new Date().toISOString(), tracks: list }));
@@ -1336,7 +1413,8 @@ async function readBackup(file){
   return h.tracks.filter(t => t && typeof t.id === 'string' && /^[\w-]{1,64}$/.test(t.id) && t.length > 0).map(t => ({
     meta: { id: t.id, title: String(t.title || 'Untitled').slice(0, 300), collection: String(t.collection || '').slice(0, 100),
       duration: +t.duration || 0, size: t.length, type: String(t.type || 'audio/mpeg'), added: +t.added || Date.now(),
-      order: typeof t.order === 'number' && isFinite(t.order) ? t.order : null, lyrics: sanitizeLyrics(t.lyrics) || undefined },
+      order: typeof t.order === 'number' && isFinite(t.order) ? t.order : null, lyrics: sanitizeLyrics(t.lyrics) || undefined,
+      lyStyle: typeof t.lyStyle === 'string' && /^[a-z]{1,20}$/.test(t.lyStyle) ? t.lyStyle : undefined },
     blob: file.slice(base + t.offset, base + t.offset + t.length, String(t.type || 'audio/mpeg'))
   }));
 }
@@ -1473,10 +1551,14 @@ E.slOpts.addEventListener('click', e => {
 const LY = { panel:$('#lyp'), body:$('#lyBody'), title:$('#lyTitle'), sub:$('#lySub'), close:$('#lyClose'), menu:$('#lyMenu'), btn:$('#lyBtn'), grab:$('#grab'),
   sync:$('#lySync'), syncInfo:$('#lySyncInfo'), syncTap:$('#lySyncTap'), syncBack:$('#lySyncBack'), syncCancel:$('#lySyncCancel'),
   dlg:$('#lyDlg'), dlgMsg:$('#lyDlgMsg'), opts:$('#lyOpts'), dlgClose:$('#lyDlgClose'),
-  edit:$('#lyEditDlg'), text:$('#lyText'), editMsg:$('#lyEditMsg'), editSave:$('#lyEditSave'), editCancel:$('#lyEditCancel'), file:$('#lrcFile') };
+  edit:$('#lyEditDlg'), text:$('#lyText'), editMsg:$('#lyEditMsg'), editSave:$('#lyEditSave'), editCancel:$('#lyEditCancel'), file:$('#lrcFile'),
+  fix:$('#lyFix'), fixInfo:$('#lyFixInfo'), fixTap:$('#lyFixTap'), fixPick:$('#lyFixPick'), fixDone:$('#lyFixDone'),
+  auto:$('#lyAuto'), autoInfo:$('#lyAutoInfo'), autoCancel:$('#lyAutoCancel'),
+  styleDlg:$('#lyStyleDlg'), styleOpts:$('#lyStyleOpts'), styleDefault:$('#lyStyleDefault'), styleClose:$('#lyStyleClose'),
+  asDlg:$('#lyAsDlg'), asGo:$('#lyAsGo'), asCancel:$('#lyAsCancel') };
 const LY_MAX_LINES = 500, LY_MAX_CHARS = 300;
 const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-let lyOpenFlag = false, lyEls = [], lyIdx = -1, lyUserScroll = 0, lyRAF = 0, sync = null, lyRemoveArmed = false;
+let lyOpenFlag = false, lyEls = [], lyIdx = -1, lyUserScroll = 0, lyRAF = 0, sync = null, lyRemoveArmed = false, fix = null, auto = null;
 const toSec = (m, s) => (+m) * 60 + parseFloat(String(s).replace(':', '.'));
 const STAMP = /^\[(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)\]/;
 const WSTAMP = /<(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)>/g;
@@ -1508,6 +1590,7 @@ function sanitizeLyrics(L){
   if (!L || !Array.isArray(L.lines)) return null;
   const lines = L.lines.slice(0, LY_MAX_LINES).map(l => {
     const o = { t: typeof l.t === 'number' && isFinite(l.t) && l.t >= 0 ? Math.round(l.t * 100) / 100 : null, x: String(l.x == null ? '' : l.x).slice(0, LY_MAX_CHARS) };
+    if (l.e) o.e = 1; // estimated by auto-sync
     if (Array.isArray(l.w) && l.w.length) o.w = l.w.slice(0, 120).map(w => ({ t: typeof w.t === 'number' && isFinite(w.t) ? Math.max(0, Math.round(w.t * 100) / 100) : 0, x: String(w.x == null ? '' : w.x).slice(0, LY_MAX_CHARS) }));
     return o;
   });
@@ -1539,7 +1622,9 @@ function lyButton(text, cls, fn){ const b = document.createElement('button'); b.
 function renderLyrics(){
   const m = cur(); lyIdx = -1; lyEls = [];
   LY.title.textContent = m ? m.title : ''; LY.sub.textContent = m ? coll(m) : '';
-  LY.menu.hidden = !m || !!sync; LY.sync.hidden = !sync;
+  const autoHere = !!(auto && m && auto.trackId === m.id);
+  LY.menu.hidden = !m || !!sync || autoHere; LY.sync.hidden = !sync; LY.fix.hidden = !fix; LY.auto.hidden = !autoHere;
+  applyLyStyle(m);
   LY.body.replaceChildren();
   if (!m) return;
   const L = sync ? { lines: sync.lines } : curLyrics();
@@ -1562,18 +1647,20 @@ function renderLyrics(){
     if (!toks.length){ li.classList.add('gap'); li.textContent = '\u266a'; }
     else if (timed){ toks.forEach((w, k) => { if (k && sep) li.append(sep); const s = document.createElement('span'); s.className = 'w'; s.textContent = w; li.append(s); }); }
     else li.textContent = line.x;
-    if (timed) li.addEventListener('click', () => { audio.currentTime = line.t; if (audio.paused) audio.play().catch(() => {}); lyIdx = -1; lyUserScroll = 0; kickLyrics(); });
+    if (timed && line.e) li.classList.add('est');
+    if (timed && fix){ const chip = document.createElement('span'); chip.className = 'lt'; chip.textContent = fmtT(line.t) + (line.e ? ' \u00b7 estimated' : ''); li.prepend(chip); if (fix.idx === i) li.classList.add('lsel'); }
+    if (timed) li.addEventListener('click', () => { if (fix){ pickFixLine(i); return; } audio.currentTime = line.t; if (audio.paused) audio.play().catch(() => {}); lyIdx = -1; lyUserScroll = 0; kickLyrics(); });
     ol.append(li); lyEls.push(li);
   });
   LY.body.append(ol);
-  if (sync) updateSyncUI(); else kickLyrics();
+  if (sync) updateSyncUI(); else { kickLyrics(); if (fix) updateFixUI(); if (autoHere) updateAutoUI(); }
 }
 function scrollLyricTo(el){
   if (!el) return;
   LY.body.scrollTo({ top: Math.max(0, el.offsetTop - LY.body.clientHeight * 0.35), behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
 function lyFrame(){
-  if (!lyOpenFlag || sync) return;
+  if (!lyOpenFlag || sync || document.visibilityState === 'hidden') return;
   const L = curLyrics(); if (!isTimed(L) || lyEls.length !== L.lines.length) return;
   const lines = L.lines, t = audio.currentTime || 0;
   let i = lyIdx;
@@ -1611,11 +1698,11 @@ function openLyrics(){
 }
 function closeLyrics(){
   if (!lyOpenFlag) return;
-  sync = null; lyOpenFlag = false; LY.panel.classList.remove('open');
+  sync = null; fix = null; lyOpenFlag = false; LY.panel.classList.remove('open');
   LY.btn.setAttribute('aria-expanded', 'false'); LY.btn.setAttribute('aria-pressed', 'false');
   setTimeout(() => { if (!lyOpenFlag) LY.panel.hidden = true; }, reduceMotion() ? 0 : 260);
 }
-function lyTrackChanged(m){ if (sync && sync.trackId !== m.id) sync = null; if (lyOpenFlag) renderLyrics(); }
+function lyTrackChanged(m){ if (sync && sync.trackId !== m.id) sync = null; if (fix && fix.trackId !== m.id) fix = null; if (lyOpenFlag) renderLyrics(); }
 window.addEventListener('resize', () => { if (lyOpenFlag) placeLyrics(); });
 LY.btn.addEventListener('click', () => lyOpenFlag ? closeLyrics() : openLyrics());
 LY.grab.addEventListener('click', openLyrics);
@@ -1680,6 +1767,9 @@ function openLyOptions(){
   const L = curLyrics(), timed = isTimed(L); lyRemoveArmed = false; LY.dlgMsg.textContent = '';
   const opts = [];
   if (L) opts.push(lyButton(timed ? 'Sync again by tapping along' : 'Sync lyrics by tapping along', 'btn-quiet', () => { LY.dlg.close(); startSync(); }));
+  if (L && autoSyncAvailable()) opts.push(lyButton('Auto-sync from the audio (beta)', 'btn-quiet', () => { LY.dlg.close(); LY.asDlg.showModal(); }));
+  if (timed) opts.push(lyButton("Fix a line's timing", 'btn-quiet', () => { LY.dlg.close(); startFix(); }));
+  opts.push(lyButton(`Style: ${LY_STYLES[styleOf(cur())].name}`, 'btn-quiet', () => { LY.dlg.close(); openStylePicker(); }));
   opts.push(lyButton(L ? 'Edit lyrics' : 'Paste lyrics', 'btn-quiet', openLyEditor));
   opts.push(lyButton('Import a .lrc file', 'btn-quiet', () => LY.file.click()));
   if (timed){
@@ -1736,6 +1826,262 @@ LY.syncBack.addEventListener('click', () => {
   audio.currentTime = Math.max(0, (old || 0) - 3); updateSyncUI();
 });
 LY.syncCancel.addEventListener('click', () => { sync = null; renderLyrics(); toast('Syncing stopped. Nothing was changed.'); });
+
+
+// ---------- lyric styles (per song) ----------
+const LY_STYLES = {
+  clean: { name: "Clean", fonts: null },
+  cute: { name: "Cute", fonts: "Jua&family=Hachi+Maru+Pop" },
+  elegant: { name: "Elegant", fonts: "Playfair+Display:ital,wght@1,600&family=Gowun+Batang:wght@700&family=Shippori+Mincho:wght@600" },
+  bold: { name: "Bold", fonts: "Anton&family=Black+Han+Sans&family=Dela+Gothic+One" },
+  retro: { name: "Retro", fonts: "Pixelify+Sans:wght@500&family=DotGothic16" },
+  dreamy: { name: "Dreamy", fonts: "Quicksand:wght@600&family=Gowun+Dodum&family=M+PLUS+Rounded+1c:wght@500" },
+  handwritten: { name: "Handwritten", fonts: "Caveat:wght@600&family=Nanum+Pen+Script&family=Yomogi" },
+  neon: { name: "Neon", fonts: "Tilt+Neon&family=Do+Hyeon&family=DotGothic16" },
+  romantic: { name: "Romantic", fonts: "Dancing+Script:wght@700&family=Gowun+Batang:wght@700&family=Shippori+Mincho:wght@600" },
+  comic: { name: "Comic", fonts: "Bangers&family=Gaegu:wght@700&family=Kosugi+Maru" },
+  typewriter: { name: "Typewriter", fonts: "Special+Elite&family=Nanum+Gothic+Coding&family=DotGothic16" },
+  anime: { name: "Anime", fonts: "M+PLUS+Rounded+1c:wght@800&family=Gamja+Flower" },
+  gothic: { name: "Gothic", fonts: "UnifrakturMaguntia&family=Song+Myung&family=Shippori+Mincho:wght@700" },
+  graffiti: { name: "Graffiti", fonts: "Permanent+Marker&family=Nanum+Brush+Script&family=Yusei+Magic" },
+  horror: { name: "Horror", fonts: "Creepster&family=Black+Han+Sans&family=Dela+Gothic+One" },
+  scifi: { name: "Sci-fi", fonts: "Orbitron:wght@700&family=Do+Hyeon&family=Stick" },
+  western: { name: "Western", fonts: "Rye&family=Song+Myung&family=Kaisei+Decol:wght@700" },
+  stencil: { name: "Stencil", fonts: "Black+Ops+One&family=Black+Han+Sans&family=Dela+Gothic+One" },
+  storybook: { name: "Storybook", fonts: "Uncial+Antiqua&family=Gowun+Batang:wght@700&family=Kaisei+Decol:wght@500" },
+  kawaii: { name: "Kawaii", fonts: "Rampart+One&family=Jua" },
+  terminal: { name: "Terminal", fonts: "VT323&family=Nanum+Gothic+Coding&family=DotGothic16" },
+  disco: { name: "Disco", fonts: "Monoton&family=Black+Han+Sans&family=Dela+Gothic+One" },
+  brush: { name: "Ink brush", fonts: "Yuji+Syuku&family=Nanum+Brush+Script" },
+  pop: { name: "Pop", fonts: "Dela+Gothic+One&family=Black+Han+Sans" }
+};
+const lyFontsLoaded = new Set();
+function loadStyleFonts(k){
+  const f = LY_STYLES[k] && LY_STYLES[k].fonts; if (!f || lyFontsLoaded.has(k)) return;
+  lyFontsLoaded.add(k);
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = `https://fonts.googleapis.com/css2?family=${f}&display=swap`;
+  document.head.append(l);
+}
+function styleOf(m){
+  if (m && LY_STYLES[m.lyStyle]) return m.lyStyle;
+  const d = ls.get('cap.lyStyle', 'clean'); return LY_STYLES[d] ? d : 'clean';
+}
+function applyLyStyle(m){ const s = styleOf(m); LY.panel.dataset.style = s; loadStyleFonts(s); }
+function openStylePicker(){
+  const m = cur(); if (!m) return;
+  const now = styleOf(m);
+  LY.styleOpts.replaceChildren(...Object.entries(LY_STYLES).map(([k, v]) => {
+    loadStyleFonts(k);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'lys-opt'; b.dataset.style = k;
+    b.setAttribute('aria-pressed', String(k === now));
+    const name = document.createElement('span'); name.className = 'lys-name'; name.textContent = v.name;
+    const sample = document.createElement('span'); sample.className = 'lys-sample'; sample.textContent = 'Sing along \u00b7 \ub178\ub798 \u00b7 \u6b4c';
+    b.append(name, sample);
+    b.addEventListener('click', async () => {
+      m.lyStyle = k; applyLyStyle(m);
+      LY.styleOpts.querySelectorAll('.lys-opt').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.style === k)));
+      try { await store.put(m); } catch (e) { toast("Couldn't save the style. Check your connection."); }
+    });
+    return b;
+  }));
+  LY.styleDlg.showModal();
+}
+LY.styleClose.addEventListener('click', () => LY.styleDlg.close());
+LY.styleDefault.addEventListener('click', () => {
+  const s = styleOf(cur()); ls.set('cap.lyStyle', s);
+  toast(`${LY_STYLES[s].name} is now the style for songs without their own.`);
+});
+
+// ---------- fix one line's timing ----------
+function startFix(){ const m = cur(); if (!m || !isTimed(curLyrics())) return; fix = { trackId: m.id, idx: -1 }; renderLyrics(); }
+function updateFixUI(){
+  const L = curLyrics(); if (!fix || !L) return;
+  const est = L.lines.filter(l => l.e).length;
+  if (fix.idx < 0){
+    LY.fixInfo.textContent = "Tap the line that's off." + (est ? ` ${est} line${est === 1 ? ' was' : 's were'} estimated by auto-sync and ${est === 1 ? 'is' : 'are'} marked.` : '');
+    LY.fixTap.hidden = true; LY.fixPick.hidden = true;
+  } else {
+    LY.fixInfo.textContent = `Playing from just before line ${fix.idx + 1}. Tap the button the moment it starts.`;
+    LY.fixTap.hidden = false; LY.fixPick.hidden = false;
+  }
+}
+function pickFixLine(i){
+  const L = curLyrics(); if (!fix || !L || !L.lines[i]) return;
+  fix.idx = i; renderLyrics();
+  audio.currentTime = Math.max(0, L.lines[i].t - 3); if (audio.paused) audio.play().catch(() => {});
+  scrollLyricTo(lyEls[i]); LY.fixTap.focus();
+}
+LY.fixTap.addEventListener('click', async () => {
+  const m = cur(), L = curLyrics(); if (!fix || fix.idx < 0 || !m || !L) return;
+  const i = fix.idx, lines = L.lines.map(l => ({ t: l.t, x: l.x, e: l.e, w: l.w ? l.w.map(w => ({ t: w.t, x: w.x })) : undefined }));
+  const lo = i > 0 ? lines[i - 1].t + 0.05 : 0, hi = i + 1 < lines.length ? lines[i + 1].t - 0.05 : Infinity;
+  let t = Math.round((audio.currentTime || 0) * 100) / 100, kept = false;
+  if (t < lo){ t = lo; kept = true; } else if (t > hi){ t = Math.max(lo, hi); kept = true; }
+  const d = t - lines[i].t;
+  lines[i].t = t; delete lines[i].e;
+  if (lines[i].w) lines[i].w = lines[i].w.map(w => ({ t: Math.max(0, w.t + d), x: w.x }));
+  fix.idx = -1;
+  await saveLyrics(m, { lines });
+  toast(kept ? 'Saved. It was kept between the lines before and after it.' : `Line ${i + 1} now starts at ${fmtT(t)}.`);
+});
+LY.fixPick.addEventListener('click', () => { if (fix){ fix.idx = -1; renderLyrics(); } });
+LY.fixDone.addEventListener('click', () => { fix = null; renderLyrics(); });
+
+// ---------- auto-sync: a speech AI listens to the song and the app matches it to the lyrics ----------
+// Runs only in the GitHub version, in a background worker (autosync-worker.js), entirely on the device.
+function autoSyncAvailable(){ return mode === 'local' && 'Worker' in window && !!(window.OfflineAudioContext || window.webkitOfflineAudioContext); }
+let asWorker = null, asSeq = 0, wakeLock = null;
+async function to16k(blob){
+  const AC = window.AudioContext || window.webkitAudioContext, OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const ctx = new AC(); let decoded;
+  try { decoded = await ctx.decodeAudioData(await blob.arrayBuffer()); } finally { try { ctx.close(); } catch (e) {} }
+  try {
+    const off = new OAC(1, Math.ceil(decoded.duration * 16000), 16000);
+    const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
+    return (await off.startRendering()).getChannelData(0);
+  } catch (e) {
+    // Fallback: mix to mono and resample by hand
+    const n = decoded.numberOfChannels, len = decoded.length, mono = new Float32Array(len);
+    for (let ch = 0; ch < n; ch++){ const d = decoded.getChannelData(ch); for (let i = 0; i < len; i++) mono[i] += d[i] / n; }
+    const ratio = decoded.sampleRate / 16000, out = new Float32Array(Math.floor(len / ratio));
+    for (let i = 0; i < out.length; i++){ const p = i * ratio, k = Math.floor(p), f = p - k; out[i] = mono[k] * (1 - f) + (mono[k + 1] || 0) * f; }
+    return out;
+  }
+}
+function updateAutoUI(){
+  if (!auto) return;
+  LY.autoInfo.textContent = `${auto.stage}. ${fmt((Date.now() - auto.t0) / 1000)} so far. Keep this screen open; it can take a few minutes.`;
+}
+function endAuto(){
+  if (auto && auto.timer) clearInterval(auto.timer);
+  auto = null;
+  if (wakeLock){ wakeLock.release().catch(() => {}); wakeLock = null; }
+  if (asWorker){ asWorker.terminate(); asWorker = null; }
+  if (lyOpenFlag) renderLyrics();
+}
+async function runAutoSync(){
+  const m = cur(), L = curLyrics(); if (!m || !L || auto) return;
+  auto = { trackId: m.id, stage: 'Preparing the audio', t0: Date.now(), id: ++asSeq };
+  auto.timer = setInterval(updateAutoUI, 1000);
+  renderLyrics();
+  try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+  let pcm;
+  try { const blob = await local.blob(m); if (!blob) throw new Error('missing'); pcm = await to16k(blob); }
+  catch (e) { endAuto(); toast("Couldn't read this song's audio for auto-sync."); return; }
+  if (!auto || auto.trackId !== m.id) return;
+  const id = auto.id;
+  auto.stage = 'Loading the speech AI'; updateAutoUI();
+  try { asWorker = new Worker('autosync-worker.js', { type: 'module' }); }
+  catch (e) { endAuto(); toast("Auto-sync can't run in this browser."); return; }
+  asWorker.onerror = () => { endAuto(); toast("Auto-sync couldn't start in this browser."); };
+  asWorker.onmessage = async e => {
+    const d = e.data || {}; if (!auto || d.id !== id) return;
+    if (d.type === 'progress'){ auto.stage = d.total ? `Downloading the speech AI: ${fmtSize(d.loaded)} of ${fmtSize(d.total)}` : 'Downloading the speech AI'; updateAutoUI(); }
+    else if (d.type === 'listening'){ auto.stage = 'Listening to the song'; updateAutoUI(); }
+    else if (d.type === 'error'){ endAuto(); toast('Auto-sync stopped: ' + String(d.message || 'unknown error').slice(0, 140)); }
+    else if (d.type === 'done'){
+      const trackId = auto.trackId; endAuto();
+      const t = tracks.find(x => x.id === trackId); if (!t || !t.lyrics) return;
+      const res = alignLyrics(t.lyrics.lines, d.words, t.duration || 0);
+      if (!res){ toast("Auto-sync couldn't match the lyrics to what it heard. Try Sync lyrics instead."); return; }
+      await saveLyrics(t, { lines: res.lines });
+      const est = res.lines.length - res.matched;
+      toast(`Auto-sync timed ${res.matched} of ${res.lines.length} lines from the audio.` + (est ? ` ${est} ${est === 1 ? 'was' : 'were'} estimated; use Fix a line's timing to check ${est === 1 ? 'it' : 'them'}.` : ''));
+    }
+  };
+  asWorker.postMessage({ id, audio: pcm }, [pcm.buffer]);
+}
+LY.asCancel.addEventListener('click', () => LY.asDlg.close());
+LY.asGo.addEventListener('click', () => { LY.asDlg.close(); runAutoSync(); });
+LY.autoCancel.addEventListener('click', () => { endAuto(); toast('Auto-sync stopped. Nothing was changed.'); });
+
+// Matching: line up the words the AI heard with the lyric words (in order), then time each line from its matches.
+const AS_CJK = /[\u3040-\u30ff\u3400-\u9fff]/;
+const asNorm = s => String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+function asUnits(text){
+  const out = [];
+  for (const w of String(text).split(/\s+/)){
+    if (!w) continue;
+    if (AS_CJK.test(w)){ for (const ch of Array.from(w)){ const n = asNorm(ch); if (n) out.push(n); } }
+    else { const n = asNorm(w); if (n) out.push(n); }
+  }
+  return out;
+}
+function alignLyrics(lines, heard, dur){
+  const R = [];
+  for (const c of heard || []){
+    if (!c || typeof c.s !== 'number' || !isFinite(c.s)) continue;
+    const u = asUnits(c.w || ''); const e = typeof c.e === 'number' && c.e > c.s ? c.e : c.s + 0.3;
+    u.forEach((x, k) => R.push({ x, t: c.s + (e - c.s) * k / u.length }));
+  }
+  const U = [], info = lines.map((l, li) => {
+    const { toks, sep } = tokensOf({ x: l.x });
+    toks.forEach((tk, ti) => asUnits(tk).forEach(x => U.push({ x, li, ti })));
+    return { toks, sep, tt: new Array(toks.length).fill(null) };
+  });
+  const n = U.length, m = R.length;
+  if (!n || !m || n * m > 8e6) return null;
+  const score = (a, b) => a === b ? 2 : (a.length >= 4 && b.length >= 4 && a.slice(0, 4) === b.slice(0, 4)) ? 1 : 0;
+  const W = m + 1, dp = new Int32Array((n + 1) * W);
+  for (let i = 1; i <= n; i++){
+    for (let j = 1; j <= m; j++){
+      let v = Math.max(dp[(i - 1) * W + j], dp[i * W + j - 1]);
+      const s = score(U[i - 1].x, R[j - 1].x); if (s && dp[(i - 1) * W + j - 1] + s > v) v = dp[(i - 1) * W + j - 1] + s;
+      dp[i * W + j] = v;
+    }
+  }
+  for (let i = n, j = m; i > 0 && j > 0;){
+    const s = score(U[i - 1].x, R[j - 1].x);
+    if (s && dp[i * W + j] === dp[(i - 1) * W + j - 1] + s){
+      const u = U[i - 1], tt = info[u.li].tt; if (tt[u.ti] === null || R[j - 1].t < tt[u.ti]) tt[u.ti] = R[j - 1].t;
+      i--; j--;
+    } else if (dp[(i - 1) * W + j] >= dp[i * W + j - 1]) i--; else j--;
+  }
+  const starts = lines.map(() => null), ok = lines.map(() => false);
+  let lastStart = -1;
+  info.forEach((L, li) => {
+    const known = L.tt.filter(x => x !== null).length;
+    if (!L.toks.length || known < Math.max(1, Math.ceil(L.toks.length * 0.3))) return;
+    const f = L.tt.findIndex(x => x !== null);
+    const st = Math.max(0, L.tt[f] - f * 0.35);
+    if (st <= lastStart + 0.2) return; // out of order: let it be estimated instead
+    starts[li] = st; ok[li] = true; lastStart = st;
+  });
+  const knownIdx = starts.map((s, i) => s === null ? -1 : i).filter(i => i >= 0);
+  if (!knownIdx.length) return null;
+  const weight = i => Math.max(1, info[i].toks.length);
+  // Before the first matched line: step back from it. After the last: step forward.
+  for (let i = knownIdx[0] - 1; i >= 0; i--) starts[i] = Math.max(0, starts[i + 1] - Math.max(2, weight(i) * 0.4));
+  const last = knownIdx[knownIdx.length - 1];
+  for (let i = last + 1; i < lines.length; i++){ let t = starts[i - 1] + Math.max(2, weight(i - 1) * 0.4); if (dur) t = Math.min(t, Math.max(0, dur - 0.5)); starts[i] = t; }
+  // Between matched lines: spread by how many words each line has
+  for (let k = 0; k + 1 < knownIdx.length; k++){
+    const a = knownIdx[k], b = knownIdx[k + 1]; if (b - a < 2) continue;
+    let total = 0; for (let i = a; i < b; i++) total += weight(i);
+    let acc = 0;
+    for (let i = a + 1; i < b; i++){ acc += weight(i - 1); starts[i] = starts[a] + (starts[b] - starts[a]) * acc / total; }
+  }
+  for (let i = 1; i < starts.length; i++) if (starts[i] < starts[i - 1]) starts[i] = starts[i - 1];
+  const out = lines.map((l, li) => {
+    const o = { t: Math.round(starts[li] * 100) / 100, x: l.x };
+    if (!ok[li]){ o.e = 1; return o; }
+    const L = info[li], next = li + 1 < lines.length ? starts[li + 1] : starts[li] + 6;
+    const known = L.tt.filter(x => x !== null).length;
+    if (L.toks.length > 1 && known >= Math.ceil(L.toks.length * 0.6)){
+      const tt = L.tt.slice(); tt[0] = tt[0] === null ? starts[li] : tt[0];
+      for (let k = 1; k < tt.length; k++){
+        if (tt[k] !== null && tt[k] >= tt[k - 1]) continue;
+        let j = k; while (j < tt.length && (tt[j] === null || tt[j] < tt[k - 1])) j++;
+        const end = j < tt.length ? tt[j] : Math.min(next, tt[k - 1] + 0.4 * (j - k + 1));
+        for (let q = k; q < j; q++) tt[q] = tt[k - 1] + (end - tt[k - 1]) * (q - k + 1) / (j - k + 1);
+        k = j - 1;
+      }
+      o.w = L.toks.map((x, k) => ({ t: Math.round(Math.min(tt[k], next) * 100) / 100, x: x + (L.sep && k < L.toks.length - 1 ? L.sep : '') }));
+    }
+    return o;
+  });
+  return { lines: out, matched: ok.filter(Boolean).length };
+}
 
 // ---------- start ----------
 (async function init(){

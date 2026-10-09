@@ -42,7 +42,10 @@ Clip & Play doesn't download or provide lyrics. You add them yourself, and they'
 
 - **Paste lyrics** as plain text, one line per line. Any language or alphabet works, including right-to-left scripts.
 - **Import a .lrc file**, the common timed-lyrics format. Timing is kept, including word-by-word timing if the file has it.
-- **Sync lyrics** for untimed text: the song restarts and you tap the button the moment each line starts. If the result is slightly early or late, nudge it from the lyrics menu.
+- **Auto-sync from the audio (beta)** times lyrics you've added for you. A speech AI listens to the song on your device and matches what it hears to your lyrics, line by line and often word by word. Lines it couldn't match, such as romanized lyrics it hears in another script, are estimated and marked so you can check them.
+- **Sync lyrics** times them by hand: the song restarts and you tap the button the moment each line starts.
+- **Fix a line's timing** corrects just one line: tap it, the song plays from just before it, and you tap when it starts. You can also nudge all lines earlier or later from the lyrics menu.
+- **Styles** give each song's lyrics its own look, from 24 choices: Clean, Cute, Elegant, Bold, Retro, Dreamy, Handwritten, Neon, Romantic, Comic, Typewriter, Anime, Gothic, Graffiti, Horror, Sci-fi, Western, Stencil, Storybook, Kawaii, Terminal, Disco, Ink brush and Pop. Each pairs its own lettering with effects like glows, outlines, highlight boxes and tilted lines, and most include fonts made for Korean and Japanese.
 
 The current line lights up as it's sung, with a sweep across the words. Tap any line to jump to it. Lyrics are included in backups.
 
@@ -54,11 +57,14 @@ Browser storage can be erased if you clear your browser's website data or remove
 
 ## Privacy
 
-The app has no accounts, analytics or tracking. The only outside request is for its two fonts, Figtree and Pixelify Sans, which load from Google Fonts. If they can't load, the app falls back to your device's fonts.
+The app has no accounts, analytics or tracking, and your music never leaves your device. It makes these outside requests:
+
+- **Fonts** load from Google Fonts: the app's own two, plus a lyric style's fonts when you use that style. If they can't load, your device's fonts are used instead.
+- **Auto-sync**, only if you use it, downloads the transformers.js library from jsDelivr and the Whisper speech model (about 100 MB) from Hugging Face. The browser keeps them for next time. The AI runs on your device; your audio isn't sent anywhere.
 
 ## Running your own copy
 
-It's a static site with no build step: `index.html`, `sw.js`, `manifest.webmanifest` and the icons. Serve the folder from any web host, or fork this repository and turn on GitHub Pages. Opening `index.html` straight from your computer works too, but offline caching needs it served over HTTPS.
+It's a static site with no build step: `index.html`, `sw.js`, `autosync-worker.js`, `manifest.webmanifest` and the icons. Serve the folder from any web host, or fork this repository and turn on GitHub Pages. Opening `index.html` straight from your computer works too, but offline caching needs it served over HTTPS.
 
 ## License
 
