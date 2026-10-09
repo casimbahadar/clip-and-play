@@ -1,6 +1,7 @@
-// Caches the app itself so it opens offline. Music lives in IndexedDB, not here.
-const CACHE = 'clip-and-play-v3';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+// Keeps a copy of the app so it opens offline. Always tries the network first, so updates show up right away.
+// Music lives in IndexedDB, not here.
+const CACHE = 'clip-and-play-v4';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './cp-icon-180.png', './cp-icon-192.png', './cp-icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -13,12 +14,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  if (e.request.mode === 'navigate'){
-    // Newest version when online, cached copy when offline
-    e.respondWith(fetch(e.request).then(r => {
-      const copy = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return r;
-    }).catch(() => caches.match('./index.html')));
-    return;
-  }
-  e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request)));
+  const nav = e.request.mode === 'navigate';
+  e.respondWith(fetch(e.request).then(r => {
+    if (r.ok){ const copy = r.clone(); caches.open(CACHE).then(c => c.put(nav ? './index.html' : e.request, copy)); }
+    return r;
+  }).catch(() => caches.match(nav ? './index.html' : e.request)));
 });
