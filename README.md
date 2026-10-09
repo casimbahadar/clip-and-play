@@ -12,6 +12,7 @@ Clip & Play doesn't download, stream or provide any music. It only works with fi
 - Cuts songs out of a longer file: set a start and end for each song, preview it, and save each one as its own track
 - Groups tracks into collections, with search, shuffle and repeat
 - Lets you arrange your own play order: drag the handle on a track, or focus it and use the up and down arrow keys
+- Shows lyrics you add, karaoke style: paste them, import a .lrc file, or tap along once to time each line. Swipe up on the player, or tap the microphone, to open them
 - Has a sleep timer that stops playback at the end of the current song, after 15, 30 or 60 minutes, or after a custom time in minutes and seconds
 - Shows the current track on the lock screen and responds to headphone controls where the browser supports it
 - Backs up your whole library to a file and restores it later
@@ -34,6 +35,16 @@ The Home Screen app and the regular browser keep separate libraries, so pick one
 5. Tap **Save**.
 
 MP3 files are cut directly, which is instant and keeps the original quality. Other files are recorded while the page plays them silently, so a 4 minute song takes 4 minutes to save. Keep the screen on and the page open while it works.
+
+## Lyrics
+
+Clip & Play doesn't download or provide lyrics. You add them yourself, and they're saved with the song:
+
+- **Paste lyrics** as plain text, one line per line. Any language or alphabet works, including right-to-left scripts.
+- **Import a .lrc file**, the common timed-lyrics format. Timing is kept, including word-by-word timing if the file has it.
+- **Sync lyrics** for untimed text: the song restarts and you tap the button the moment each line starts. If the result is slightly early or late, nudge it from the lyrics menu.
+
+The current line lights up as it's sung, with a sweep across the words. Tap any line to jump to it. Lyrics are included in backups.
 
 ## Where your music is stored
 

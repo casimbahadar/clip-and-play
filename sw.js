@@ -1,6 +1,6 @@
 // Keeps a copy of the app so it opens offline. Always checks GitHub for a newer version first,
 // skipping the browser's short-term cache, so updates show up on the next open. Music lives in IndexedDB, not here.
-const CACHE = 'clip-and-play-v11';
+const CACHE = 'clip-and-play-v12';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './cp-icon-180.png', './cp-icon-192.png', './cp-icon-512.png'];
 
 self.addEventListener('install', e => {

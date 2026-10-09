@@ -154,6 +154,36 @@ dialog:focus-visible{outline:none}
 .grip{touch-action:none;cursor:grab;color:var(--muted);-webkit-user-select:none;user-select:none}
 .list li.lift{position:relative;z-index:2;background:var(--panel);border-radius:var(--r-s);box-shadow:0 8px 24px rgba(0,0,0,.35);-webkit-user-select:none;user-select:none}
 .list li.lift .grip{cursor:grabbing}
+.now .win{position:relative}
+.grab{position:absolute;top:0;left:50%;transform:translateX(-50%);width:80px;height:22px;border:0;background:none;padding:0;cursor:pointer;touch-action:none}
+.grab::before{content:"";display:block;width:40px;height:5px;margin:7px auto 0;border-radius:3px;background:var(--line)}
+.np-text{touch-action:none;cursor:pointer}
+.now .np-head,.lyp-top,.lyp-head{-webkit-user-select:none;user-select:none}
+.lyp{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);bottom:0;z-index:4;background:var(--bg);display:flex;flex-direction:column;transform:translateY(110%);transition:transform .25s ease}
+.lyp.open{transform:none}
+.lyp-top{display:flex;justify-content:center;touch-action:none}
+.lyp-top .grab{position:static;transform:none;width:120px;height:28px}
+.lyp-head{display:flex;align-items:center;gap:8px;padding:0 var(--gut) 8px;max-width:760px;width:100%;margin:0 auto;touch-action:none}
+.lyp-head .np-text{cursor:default}
+.lyp-title{font:700 20px/1.25 var(--font);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lyp-sub{margin:0;color:var(--muted);font-size:14px;min-height:20px}
+.lyp-body{position:relative;flex:1;overflow-y:auto;overscroll-behavior:contain;padding:8px var(--gut) 40vh;max-width:760px;width:100%;margin:0 auto}
+.ly{list-style:none;margin:0;padding:0}
+.ll{font:600 22px/1.4 var(--font);color:var(--muted);padding:8px 0;overflow-wrap:anywhere}
+.ly.timed .ll{cursor:pointer}
+.ll.lpast{color:var(--ink);opacity:.6}
+.ll.lcur{color:var(--ink)}
+.ll.lcur .w{background:linear-gradient(90deg,var(--accent) var(--p,0%),var(--ink) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ll.gap{letter-spacing:.3em}
+.ly-note{color:var(--muted);margin:4px 0 12px}
+.ly-empty{padding:24px 0;text-align:center}
+.ly-empty p{color:var(--muted);margin:0 0 8px}
+.ly-empty .btn,.ly-sync-start{width:100%;margin-top:12px}
+.lyp-sync{border-top:1px solid var(--line);padding:12px var(--gut) 16px;max-width:760px;width:100%;margin:0 auto}
+.lyp-sync p{margin:0;color:var(--muted);font-size:15px}
+.lyp-sync .actions{margin-top:12px}
+.field.ta{min-height:260px;padding:12px;font:16px/1.5 var(--font);resize:vertical;display:block}
+@media (prefers-reduced-motion:reduce){.lyp{transition:none}}
 .toast{position:fixed;left:var(--gut);right:var(--gut);bottom:calc(24px + env(safe-area-inset-bottom,0px));margin:0 auto;max-width:480px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:var(--r-m);font-size:15px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;z-index:20}
 body.has-bar .toast{bottom:calc(var(--bar-h) + env(safe-area-inset-bottom,0px) + 12px)}
 .toast.show{opacity:1;transform:none}
@@ -191,6 +221,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
     <button type="button" class="btn btn-primary" id="addBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>Add music</button>
   </header>
   <input type="file" id="restoreFile" multiple hidden>
+  <input type="file" id="lrcFile" hidden>
   <input type="file" id="file" accept="audio/*,video/mp4,video/webm,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac,.mp4,.m4v,.webm" multiple hidden>
   <p class="note" id="memNote" hidden>This browser isn't allowing saved storage here, so your library will clear when you close the page.</p>
   <main>
@@ -215,19 +246,38 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.1.1</p>
+      <p class="ver">Clip &amp; Play v1.2</p>
     </section>
   </main>
 </div>
 </div>
 
+<section class="lyp" id="lyp" hidden aria-label="Lyrics">
+  <div class="lyp-top"><button type="button" class="grab" id="lyClose" aria-label="Close lyrics"></button></div>
+  <div class="lyp-head">
+    <div class="np-text"><p class="lyp-title" id="lyTitle"></p><p class="lyp-sub" id="lySub"></p></div>
+    <button type="button" class="icon" id="lyMenu" aria-label="Lyrics options"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></g></svg></button>
+  </div>
+  <div class="lyp-body" id="lyBody"></div>
+  <div class="lyp-sync" id="lySync" hidden>
+    <p id="lySyncInfo"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="lySyncBack">Back a line</button>
+      <button type="button" class="btn btn-primary" id="lySyncTap">This line starts now</button>
+    </div>
+    <div class="actions"><button type="button" class="btn btn-quiet" id="lySyncCancel">Stop syncing</button></div>
+  </div>
+</section>
+
 <div class="now" id="now" hidden>
   <div class="win">
+    <button type="button" class="grab" id="grab" aria-label="Show lyrics"></button>
     <div class="np-head">
       <div class="np-text">
         <p class="np-title" id="npTitle">Nothing playing</p>
         <p class="np-sub" id="npSub">Pick a track</p>
       </div>
+      <button type="button" class="icon" id="lyBtn" aria-label="Lyrics" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button type="button" class="icon sleep" id="sleepBtn" aria-label="Sleep timer" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span id="sleepLeft"></span></button>
     </div>
     <div class="seek">
@@ -354,6 +404,27 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
     </div>
   </div>
 </dialog>
+<dialog id="lyDlg" aria-labelledby="lyDlgH">
+  <div class="sheet">
+    <h2 id="lyDlgH">Lyrics</h2>
+    <p id="lyDlgMsg" aria-live="polite"></p>
+    <div class="stack" id="lyOpts"></div>
+    <div class="actions"><button type="button" class="btn btn-quiet" id="lyDlgClose">Done</button></div>
+  </div>
+</dialog>
+<dialog id="lyEditDlg" aria-labelledby="lyEditH">
+  <div class="sheet tall">
+    <h2 id="lyEditH">Lyrics</h2>
+    <p>Paste or type the lyrics, one line per line. Lyrics in .lrc format, with times like [01:23.45], keep their timing.</p>
+    <label for="lyText">Lyrics</label>
+    <textarea class="field ta" id="lyText" spellcheck="false" autocomplete="off"></textarea>
+    <p class="prog" id="lyEditMsg" aria-live="polite"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="lyEditCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="lyEditSave">Save lyrics</button>
+    </div>
+  </div>
+</dialog>
 <datalist id="cols"></datalist>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -468,7 +539,7 @@ const server = {
       meta.asset = r.id; meta.enc = kind ? 'raw' : 'b64';
     }
     const doc = {};
-    for (const k of ['title', 'collection', 'duration', 'size', 'type', 'added', 'order', 'asset', 'enc']) if (meta[k] !== undefined) doc[k] = meta[k];
+    for (const k of ['title', 'collection', 'duration', 'size', 'type', 'added', 'order', 'lyrics', 'asset', 'enc']) if (meta[k] !== undefined) doc[k] = meta[k];
     try { await server.col().doc(meta.id).set(doc); }
     catch (e){ if (payload && meta.asset){ try { await sassets.delete(meta.asset); } catch (x) {} } throw e; }
   },
@@ -721,7 +792,7 @@ function applySource(m, src, autoplay, at){
   currentUrl = src.own ? src.url : null;
   currentId = m.id; pendingSeek = at;
   audio.src = src.url;
-  updateNow(); markCurrent(); setMeta(m); savePos();
+  updateNow(); markCurrent(); setMeta(m); savePos(); lyTrackChanged(m);
   if (autoplay){ const p = audio.play(); if (p) p.catch(e => playErr(e, m)); }
   prefetchNext();
 }
@@ -766,7 +837,7 @@ function step(dir, auto){
 function stopCurrent(){
   audio.pause(); audio.removeAttribute('src'); try { audio.load(); } catch (e) {}
   if (currentUrl) URL.revokeObjectURL(currentUrl);
-  releasePre(); nextQueue = null;
+  releasePre(); nextQueue = null; if (lyOpenFlag) closeLyrics();
   currentUrl = null; currentId = null; queue = []; qi = -1; ls.set('cap.last', null);
 }
 
@@ -785,6 +856,7 @@ audio.addEventListener('timeupdate', () => {
   const now = Date.now(); if (now - lastSave > 5000){ lastSave = now; savePos(); }
 });
 audio.addEventListener('ended', () => {
+  if (sync){ audio.pause(); return; } // syncing lyrics: stay on this song
   if (sleep && sleep.mode === 'track'){ sleep = null; updateSleep(); audio.currentTime = 0; updateNow(); toast('Sleep timer stopped playback.'); return; }
   if (repeat === 'one'){ audio.currentTime = 0; audio.play().catch(() => {}); }
   else step(1, true);
@@ -899,6 +971,7 @@ window.addEventListener('drop', e => {
 // Keyboard shortcuts (computers). Inside the cutter they control the file being cut.
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape' && lyOpenFlag && !document.querySelector('dialog[open]')){ closeLyrics(); return; }
   const t = e.target, tag = t && t.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
   const inCut = E.cut.open;
@@ -963,7 +1036,7 @@ E.edSave.addEventListener('click', async () => {
   const t = tracks.find(x => x.id === editId); if (!t){ E.ed.close(); return; }
   t.title = E.edTitle.value.trim() || t.title; t.collection = E.edCol.value.trim();
   try { await store.put(t); } catch (e) { toast("Couldn't save changes. Check your connection."); }
-  E.ed.close(); render(); if (t.id === currentId){ updateNow(); setMeta(t); }
+  E.ed.close(); render(); if (t.id === currentId){ updateNow(); setMeta(t); if (lyOpenFlag) renderLyrics(); }
 });
 E.edDel.addEventListener('click', async () => {
   if (!delArmed){ delArmed = true; E.edDel.textContent = 'Tap again to delete'; return; }
@@ -1206,7 +1279,7 @@ const enc = new TextEncoder(), dec = new TextDecoder();
 function backupFile(items, i, n){
   let off = 0;
   const list = items.map(({ meta, blob }) => {
-    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, order: typeof meta.order === 'number' ? meta.order : null, offset: off, length: blob.size };
+    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, order: typeof meta.order === 'number' ? meta.order : null, lyrics: meta.lyrics || null, offset: off, length: blob.size };
     off += blob.size; return h;
   });
   const head = enc.encode(JSON.stringify({ app: 'clip-and-play', version: 1, part: i + 1, parts: n, created: new Date().toISOString(), tracks: list }));
@@ -1263,7 +1336,7 @@ async function readBackup(file){
   return h.tracks.filter(t => t && typeof t.id === 'string' && /^[\w-]{1,64}$/.test(t.id) && t.length > 0).map(t => ({
     meta: { id: t.id, title: String(t.title || 'Untitled').slice(0, 300), collection: String(t.collection || '').slice(0, 100),
       duration: +t.duration || 0, size: t.length, type: String(t.type || 'audio/mpeg'), added: +t.added || Date.now(),
-      order: typeof t.order === 'number' && isFinite(t.order) ? t.order : null },
+      order: typeof t.order === 'number' && isFinite(t.order) ? t.order : null, lyrics: sanitizeLyrics(t.lyrics) || undefined },
     blob: file.slice(base + t.offset, base + t.offset + t.length, String(t.type || 'audio/mpeg'))
   }));
 }
@@ -1393,6 +1466,276 @@ E.slOpts.addEventListener('click', e => {
   updateSleep(); E.sleepDlg.close();
   toast(!sleep ? 'Sleep timer off.' : sleep.mode === 'track' ? 'Playback will stop at the end of this song.' : `Playback will stop in ${v} minutes.`);
 });
+
+
+// ---------- lyrics ----------
+// Lyrics come from the person: pasted text, an imported .lrc file, or tap-along syncing. Clip & Play never fetches lyrics.
+const LY = { panel:$('#lyp'), body:$('#lyBody'), title:$('#lyTitle'), sub:$('#lySub'), close:$('#lyClose'), menu:$('#lyMenu'), btn:$('#lyBtn'), grab:$('#grab'),
+  sync:$('#lySync'), syncInfo:$('#lySyncInfo'), syncTap:$('#lySyncTap'), syncBack:$('#lySyncBack'), syncCancel:$('#lySyncCancel'),
+  dlg:$('#lyDlg'), dlgMsg:$('#lyDlgMsg'), opts:$('#lyOpts'), dlgClose:$('#lyDlgClose'),
+  edit:$('#lyEditDlg'), text:$('#lyText'), editMsg:$('#lyEditMsg'), editSave:$('#lyEditSave'), editCancel:$('#lyEditCancel'), file:$('#lrcFile') };
+const LY_MAX_LINES = 500, LY_MAX_CHARS = 300;
+const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let lyOpenFlag = false, lyEls = [], lyIdx = -1, lyUserScroll = 0, lyRAF = 0, sync = null, lyRemoveArmed = false;
+const toSec = (m, s) => (+m) * 60 + parseFloat(String(s).replace(':', '.'));
+const STAMP = /^\[(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)\]/;
+const WSTAMP = /<(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)>/g;
+function parseLyrics(text){
+  const out = []; let offset = 0, timed = 0;
+  for (const raw of String(text || '').replace(/\r/g, '').split('\n')){
+    let rest = raw.trim(); if (!rest) continue;
+    const off = /^\[offset:\s*([+-]?\d+)\s*\]$/i.exec(rest); if (off){ offset = +off[1] / 1000; continue; }
+    if (/^\[(ar|ti|al|au|by|length|re|ve|la|id|tool|#)\b[^\]]*\]$/i.test(rest)) continue;
+    const stamps = []; let m;
+    while ((m = STAMP.exec(rest))){ stamps.push(toSec(m[1], m[2])); rest = rest.slice(m[0].length); }
+    let words = null;
+    if (/<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/.test(rest)){
+      words = []; let w; WSTAMP.lastIndex = 0;
+      const parts = rest.split(WSTAMP); // [before, m, s, text, m, s, text, ...]
+      for (let k = 1; k + 2 < parts.length + 1; k += 3){ const x = parts[k + 2] || ''; if (x.trim()) words.push({ t: toSec(parts[k], parts[k + 1]), x }); }
+      rest = rest.replace(WSTAMP, '');
+    }
+    const x = rest.replace(/\s+/g, ' ').trim();
+    if (stamps.length){
+      timed++;
+      for (const t of stamps) out.push({ t: Math.max(0, t - offset), x, w: words && words.length ? words.map(o => ({ t: Math.max(0, o.t - offset), x: o.x })) : undefined });
+    } else if (x) out.push({ t: null, x });
+  }
+  const lines = timed ? out.filter(l => l.t !== null).sort((a, b) => a.t - b.t) : out;
+  return sanitizeLyrics({ lines });
+}
+function sanitizeLyrics(L){
+  if (!L || !Array.isArray(L.lines)) return null;
+  const lines = L.lines.slice(0, LY_MAX_LINES).map(l => {
+    const o = { t: typeof l.t === 'number' && isFinite(l.t) && l.t >= 0 ? Math.round(l.t * 100) / 100 : null, x: String(l.x == null ? '' : l.x).slice(0, LY_MAX_CHARS) };
+    if (Array.isArray(l.w) && l.w.length) o.w = l.w.slice(0, 120).map(w => ({ t: typeof w.t === 'number' && isFinite(w.t) ? Math.max(0, Math.round(w.t * 100) / 100) : 0, x: String(w.x == null ? '' : w.x).slice(0, LY_MAX_CHARS) }));
+    return o;
+  });
+  return lines.length ? { lines } : null;
+}
+const isTimed = L => !!(L && L.lines && L.lines.length && L.lines.every(l => typeof l.t === 'number'));
+function lrcTime(t){ t = Math.max(0, t); const m = Math.floor(t / 60); return `${String(m).padStart(2, '0')}:${(t - m * 60).toFixed(2).padStart(5, '0')}`; }
+function lyricsToText(L){
+  if (!L || !L.lines) return '';
+  return L.lines.map(l => (typeof l.t === 'number' ? `[${lrcTime(l.t)}]` : '') + (l.w && l.w.length ? l.w.map(w => `<${lrcTime(w.t)}>${w.x}`).join('') : l.x)).join('\n');
+}
+function tokensOf(line){
+  if (line.w && line.w.length) return { toks: line.w.map(w => w.x), sep: '' };
+  const x = line.x || '';
+  if (!/\s/.test(x) && x.length > 1 && /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0e00-\u0e7f]/.test(x)) return { toks: Array.from(x), sep: '' };
+  return { toks: x.split(' ').filter(Boolean), sep: ' ' };
+}
+function wordTimes(lines, i, toks){
+  const line = lines[i], next = lines[i + 1], start = line.t, nextT = next ? next.t : start + 8;
+  if (line.w && line.w.length) return line.w.map((w, k) => ({ s: w.t, e: k + 1 < line.w.length ? line.w[k + 1].t : Math.min(nextT, w.t + 1.2) }));
+  // No word timings: spread the line's time across its words by length
+  const chars = toks.reduce((a, w) => a + w.length + 1, 0) || 1;
+  const span = Math.max(0.6, Math.min(Math.max(0.6, nextT - start), Math.max(1.5, chars * 0.12)));
+  let acc = start;
+  return toks.map(w => { const d = span * (w.length + 1) / chars; const o = { s: acc, e: acc + d }; acc += d; return o; });
+}
+function curLyrics(){ const m = cur(); return m && m.lyrics && m.lyrics.lines && m.lyrics.lines.length ? m.lyrics : null; }
+function lyButton(text, cls, fn){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = text; b.addEventListener('click', fn); return b; }
+function renderLyrics(){
+  const m = cur(); lyIdx = -1; lyEls = [];
+  LY.title.textContent = m ? m.title : ''; LY.sub.textContent = m ? coll(m) : '';
+  LY.menu.hidden = !m || !!sync; LY.sync.hidden = !sync;
+  LY.body.replaceChildren();
+  if (!m) return;
+  const L = sync ? { lines: sync.lines } : curLyrics();
+  if (!L){
+    const box = document.createElement('div'); box.className = 'ly-empty';
+    const p = document.createElement('p'); p.textContent = 'No lyrics for this song yet. Add them once and they stay with the song.';
+    box.append(p, lyButton('Paste lyrics', 'btn-primary', openLyEditor), lyButton('Import a .lrc file', 'btn-quiet', () => LY.file.click()));
+    LY.body.append(box); return;
+  }
+  const timed = !sync && isTimed(L);
+  if (!timed && !sync){
+    const n = document.createElement('p'); n.className = 'ly-note'; n.textContent = "These lyrics aren't timed yet. Sync them by tapping along once while the song plays.";
+    const b = lyButton('Sync lyrics', 'btn-primary ly-sync-start', startSync);
+    LY.body.append(n, b);
+  }
+  const ol = document.createElement('ol'); ol.className = 'ly' + (timed ? ' timed' : '');
+  L.lines.forEach((line, i) => {
+    const li = document.createElement('li'); li.className = 'll'; li.dir = 'auto'; // right-to-left scripts align correctly
+    const { toks, sep } = tokensOf(line); li._toks = toks;
+    if (!toks.length){ li.classList.add('gap'); li.textContent = '\u266a'; }
+    else if (timed){ toks.forEach((w, k) => { if (k && sep) li.append(sep); const s = document.createElement('span'); s.className = 'w'; s.textContent = w; li.append(s); }); }
+    else li.textContent = line.x;
+    if (timed) li.addEventListener('click', () => { audio.currentTime = line.t; if (audio.paused) audio.play().catch(() => {}); lyIdx = -1; lyUserScroll = 0; kickLyrics(); });
+    ol.append(li); lyEls.push(li);
+  });
+  LY.body.append(ol);
+  if (sync) updateSyncUI(); else kickLyrics();
+}
+function scrollLyricTo(el){
+  if (!el) return;
+  LY.body.scrollTo({ top: Math.max(0, el.offsetTop - LY.body.clientHeight * 0.35), behavior: reduceMotion() ? 'auto' : 'smooth' });
+}
+function lyFrame(){
+  if (!lyOpenFlag || sync) return;
+  const L = curLyrics(); if (!isTimed(L) || lyEls.length !== L.lines.length) return;
+  const lines = L.lines, t = audio.currentTime || 0;
+  let i = lyIdx;
+  if (i < 0 || i >= lines.length || lines[i].t > t || (i + 1 < lines.length && lines[i + 1].t <= t)){
+    i = -1; for (let k = 0; k < lines.length; k++){ if (lines[k].t <= t) i = k; else break; }
+  }
+  if (i !== lyIdx){
+    lyEls.forEach((el, k) => {
+      el.classList.toggle('lpast', k < i); el.classList.toggle('lcur', k === i);
+      if (k !== i) el.querySelectorAll('.w').forEach(s => s.style.removeProperty('--p'));
+    });
+    lyIdx = i;
+    if (i >= 0 && Date.now() - lyUserScroll > 3000) scrollLyricTo(lyEls[i]);
+  }
+  if (i >= 0){
+    const el = lyEls[i]; if (!el._wt) el._wt = wordTimes(lines, i, el._toks);
+    const spans = el.querySelectorAll('.w');
+    el._wt.forEach((w, k) => { const p = Math.max(0, Math.min(1, (t - w.s) / Math.max(0.01, w.e - w.s))); if (spans[k]) spans[k].style.setProperty('--p', (p * 100).toFixed(1) + '%'); });
+  }
+}
+function lyLoop(){ lyRAF = 0; lyFrame(); if (lyOpenFlag && !audio.paused) lyRAF = requestAnimationFrame(lyLoop); }
+function kickLyrics(){ if (!lyOpenFlag) return; lyFrame(); if (!lyRAF && !audio.paused) lyRAF = requestAnimationFrame(lyLoop); }
+audio.addEventListener('play', kickLyrics);
+audio.addEventListener('seeked', () => { lyIdx = -1; kickLyrics(); });
+audio.addEventListener('timeupdate', () => { if (lyOpenFlag) lyFrame(); });
+['wheel', 'touchmove'].forEach(ev => LY.body.addEventListener(ev, () => { lyUserScroll = Date.now(); }, { passive: true }));
+
+function placeLyrics(){ LY.panel.style.bottom = (E.now.hidden ? 0 : E.now.offsetHeight) + 'px'; }
+function openLyrics(){
+  if (lyOpenFlag) return;
+  if (!currentId){ toast('Play a song first to see its lyrics.'); return; }
+  placeLyrics(); lyOpenFlag = true; lyUserScroll = 0; renderLyrics();
+  LY.panel.hidden = false; void LY.panel.offsetWidth; LY.panel.classList.add('open');
+  LY.btn.setAttribute('aria-expanded', 'true'); LY.btn.setAttribute('aria-pressed', 'true');
+}
+function closeLyrics(){
+  if (!lyOpenFlag) return;
+  sync = null; lyOpenFlag = false; LY.panel.classList.remove('open');
+  LY.btn.setAttribute('aria-expanded', 'false'); LY.btn.setAttribute('aria-pressed', 'false');
+  setTimeout(() => { if (!lyOpenFlag) LY.panel.hidden = true; }, reduceMotion() ? 0 : 260);
+}
+function lyTrackChanged(m){ if (sync && sync.trackId !== m.id) sync = null; if (lyOpenFlag) renderLyrics(); }
+window.addEventListener('resize', () => { if (lyOpenFlag) placeLyrics(); });
+LY.btn.addEventListener('click', () => lyOpenFlag ? closeLyrics() : openLyrics());
+LY.grab.addEventListener('click', openLyrics);
+LY.close.addEventListener('click', closeLyrics);
+document.querySelector('.now .np-text').addEventListener('click', openLyrics);
+// Swipe up on the player to open, swipe down on the lyrics header to close
+function onSwipe(el, dir, fn){
+  el.addEventListener('pointerdown', e => {
+    if (e.target.closest('button:not(.grab), input')) return;
+    const y0 = e.clientY, pid = e.pointerId;
+    // Follow the pointer on the window, since a swipe quickly leaves the small area it started in
+    const move = ev => { if (ev.pointerId !== pid) return; const dy = ev.clientY - y0; if (dir < 0 ? dy < -32 : dy > 32){ end(); fn(); } };
+    const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+  });
+}
+onSwipe(document.querySelector('.now .np-head'), -1, openLyrics);
+onSwipe(LY.grab, -1, openLyrics);
+onSwipe(document.querySelector('.lyp-top'), 1, closeLyrics);
+onSwipe(document.querySelector('.lyp-head'), 1, closeLyrics);
+
+async function saveLyrics(m, L){
+  const clean = L ? sanitizeLyrics(L) : null;
+  if (clean) m.lyrics = clean; else delete m.lyrics;
+  try { await store.put(m); } catch (e) { toast("Couldn't save the lyrics. Check your connection."); }
+  if (lyOpenFlag && m.id === currentId) renderLyrics();
+}
+function openLyEditor(){
+  const m = cur(); if (!m) return;
+  LY.text.value = lyricsToText(m.lyrics); LY.editMsg.textContent = '';
+  if (LY.dlg.open) LY.dlg.close();
+  LY.edit.showModal();
+}
+LY.editCancel.addEventListener('click', () => LY.edit.close());
+LY.editSave.addEventListener('click', async () => {
+  const m = cur(); if (!m){ LY.edit.close(); return; }
+  if (!LY.text.value.trim()){ await saveLyrics(m, null); LY.edit.close(); toast('Lyrics removed.'); return; }
+  const L = parseLyrics(LY.text.value);
+  if (!L){ LY.editMsg.textContent = 'Add at least one line of lyrics.'; return; }
+  LY.edit.close(); await saveLyrics(m, L);
+  toast(isTimed(L) ? `Saved ${L.lines.length} timed lines.` : `Saved ${L.lines.length} lines. Use Sync lyrics to time them.`);
+});
+LY.file.addEventListener('change', async () => {
+  const f = LY.file.files[0]; LY.file.value = ''; const m = cur();
+  if (!f || !m) return;
+  if (f.size > 1024 * 1024){ toast('That file is too big to be a lyrics file.'); return; }
+  let L = null; try { L = parseLyrics(await f.text()); } catch (e) {}
+  if (!L){ toast("That file doesn't contain any lyrics."); return; }
+  if (LY.dlg.open) LY.dlg.close();
+  await saveLyrics(m, L);
+  toast(isTimed(L) ? `Imported ${L.lines.length} timed lines.` : `Imported ${L.lines.length} lines. They aren't timed, so use Sync lyrics.`);
+});
+
+function shiftLyrics(sec){
+  const m = cur(), L = curLyrics(); if (!m || !isTimed(L)) return;
+  const lines = L.lines.map(l => ({ t: Math.max(0, l.t + sec), x: l.x, w: l.w ? l.w.map(w => ({ t: Math.max(0, w.t + sec), x: w.x })) : undefined }));
+  saveLyrics(m, { lines });
+  m._shift = Math.round(((m._shift || 0) + sec) * 100) / 100;
+  LY.dlgMsg.textContent = `Moved ${Math.abs(sec)} seconds ${sec > 0 ? 'later' : 'earlier'}. Total change this time: ${m._shift > 0 ? '+' : ''}${m._shift} s.`;
+}
+function openLyOptions(){
+  const L = curLyrics(), timed = isTimed(L); lyRemoveArmed = false; LY.dlgMsg.textContent = '';
+  const opts = [];
+  if (L) opts.push(lyButton(timed ? 'Sync again by tapping along' : 'Sync lyrics by tapping along', 'btn-quiet', () => { LY.dlg.close(); startSync(); }));
+  opts.push(lyButton(L ? 'Edit lyrics' : 'Paste lyrics', 'btn-quiet', openLyEditor));
+  opts.push(lyButton('Import a .lrc file', 'btn-quiet', () => LY.file.click()));
+  if (timed){
+    opts.push(lyButton("Words show before they're sung", 'btn-quiet', () => shiftLyrics(0.25)));
+    opts.push(lyButton("Words show after they're sung", 'btn-quiet', () => shiftLyrics(-0.25)));
+  }
+  if (L){
+    const rm = lyButton('Remove lyrics', 'btn-danger', async () => {
+      if (!lyRemoveArmed){ lyRemoveArmed = true; rm.textContent = 'Tap again to remove'; return; }
+      LY.dlg.close(); const m = cur(); if (m){ await saveLyrics(m, null); toast('Lyrics removed.'); }
+    });
+    opts.push(rm);
+  }
+  LY.opts.replaceChildren(...opts);
+  const m = cur(); if (m) m._shift = 0;
+  LY.dlg.showModal();
+}
+LY.menu.addEventListener('click', openLyOptions);
+LY.dlgClose.addEventListener('click', () => LY.dlg.close());
+
+// Tap-along syncing: the song restarts and each tap marks when the next line begins
+function startSync(){
+  const m = cur(), L = curLyrics(); if (!m) return;
+  if (!L){ openLyEditor(); return; }
+  sync = { trackId: m.id, lines: L.lines.map(l => ({ t: null, x: l.x })), idx: 0 };
+  renderLyrics();
+  audio.currentTime = 0; audio.play().catch(e => playErr(e, m));
+  LY.syncTap.focus();
+}
+function updateSyncUI(){
+  const n = sync.lines.length;
+  LY.syncInfo.textContent = sync.idx === 0
+    ? `The song restarted. Tap the button the moment each highlighted line starts. Line 1 of ${n}.`
+    : `Line ${Math.min(sync.idx + 1, n)} of ${n}. Tap when it starts.`;
+  LY.syncBack.disabled = sync.idx === 0;
+  lyEls.forEach((el, k) => { el.classList.toggle('lpast', k < sync.idx); el.classList.toggle('lcur', k === sync.idx); });
+  scrollLyricTo(lyEls[sync.idx]);
+}
+LY.syncTap.addEventListener('click', async () => {
+  if (!sync) return;
+  if (audio.paused) audio.play().catch(() => {});
+  const prev = sync.idx ? sync.lines[sync.idx - 1].t : 0;
+  sync.lines[sync.idx].t = Math.max(prev, Math.round((audio.currentTime || 0) * 100) / 100);
+  sync.idx++;
+  if (sync.idx < sync.lines.length){ updateSyncUI(); return; }
+  const m = tracks.find(t => t.id === sync.trackId), lines = sync.lines; sync = null;
+  if (m) await saveLyrics(m, { lines });
+  toast("Lyrics synced. If they're a little off, use the \u22ef menu to nudge them.");
+  renderLyrics();
+});
+LY.syncBack.addEventListener('click', () => {
+  if (!sync || !sync.idx) return;
+  sync.idx--; const old = sync.lines[sync.idx].t; sync.lines[sync.idx].t = null;
+  audio.currentTime = Math.max(0, (old || 0) - 3); updateSyncUI();
+});
+LY.syncCancel.addEventListener('click', () => { sync = null; renderLyrics(); toast('Syncing stopped. Nothing was changed.'); });
 
 // ---------- start ----------
 (async function init(){
