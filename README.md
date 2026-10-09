@@ -11,9 +11,12 @@ Clip & Play doesn't download, stream or provide any music. It only works with fi
 - Plays MP3, M4A, WAV and other audio your browser supports, plus the sound from MP4 and WebM video files
 - Cuts songs out of a longer file: set a start and end for each song, preview it, and save each one as its own track
 - Groups tracks into collections, with search, shuffle and repeat
+- Lets you arrange your own play order: drag the handle on a track, or focus it and use the up and down arrow keys
+- Has a sleep timer that stops playback at the end of the current song or after 15, 30 or 60 minutes
 - Shows the current track on the lock screen and responds to headphone controls where the browser supports it
 - Backs up your whole library to a file and restores it later
 - Works offline after your first visit
+- On a computer: drag files onto the window to add them, and use Space to play or pause, the left and right arrows to skip 5 seconds, and N and P for next and previous
 
 ## Add it to your Home Screen
 
@@ -36,7 +39,7 @@ MP3 files are cut directly, which is instant and keeps the original quality. Oth
 
 Everything stays in your browser's storage on your device. Nothing is uploaded. The bottom of the library shows how much space you're using and roughly how much your browser allows, which is usually a large share of your device's storage.
 
-Browser storage can be erased if you clear your browser's website data or remove the Home Screen app. Use **Back up library** now and then and keep the backup file somewhere else, such as iCloud Drive or Google Drive. Large libraries are split into several backup files of up to about 500 MB each. **Restore** reads them back and skips tracks you already have.
+Browser storage can be erased if you clear your browser's website data or remove the Home Screen app. The app reminds you once you've added 20 tracks since your last backup. Use **Back up library** and keep the backup file somewhere else, such as iCloud Drive or Google Drive. Large libraries are split into several backup files of up to about 500 MB each. **Restore** reads them back and skips tracks you already have.
 
 ## Privacy
 

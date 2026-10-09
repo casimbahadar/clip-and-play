@@ -1,6 +1,6 @@
 // Keeps a copy of the app so it opens offline. Always tries the network first, so updates show up right away.
 // Music lives in IndexedDB, not here.
-const CACHE = 'clip-and-play-v4';
+const CACHE = 'clip-and-play-v6';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './cp-icon-180.png', './cp-icon-192.png', './cp-icon-512.png'];
 
 self.addEventListener('install', e => {
