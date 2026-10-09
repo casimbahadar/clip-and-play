@@ -594,7 +594,7 @@ function buildQueue(startId){
   let ids = visible().map(t => t.id);
   if (!ids.includes(startId)) ids.unshift(startId);
   if (shuffle){ ids = shuffleArr(ids.filter(i => i !== startId)); ids.unshift(startId); }
-  queue = ids; qi = ids.indexOf(startId);
+  queue = ids; qi = ids.indexOf(startId); nextQueue = null;
 }
 function savePos(){ if (currentId) ls.set('cap.last', { id: currentId, t: Math.floor(audio.currentTime || 0) }); }
 function playErr(e, m){
@@ -602,19 +602,47 @@ function playErr(e, m){
   if (e.name === 'NotAllowedError') toast('Tap play to start.');
   else toast(`Couldn't play "${m ? m.title : 'this track'}".`);
 }
+// The next track is loaded while the current one plays, so switching at the end of a song needs no
+// storage or network wait. Phones can pause a background page's storage reads until it is reopened.
+let nextPre = null, nextQueue = null;
+function releasePre(){ if (nextPre && nextPre.own) URL.revokeObjectURL(nextPre.url); nextPre = null; }
+function reshuffled(){ const last = queue[qi]; const q = shuffleArr(queue.slice()); if (q.length > 1 && q[0] === last) q.push(q.shift()); return q; }
+function peekNextId(){
+  if (!queue.length) return null;
+  if (qi + 1 < queue.length) return queue[qi + 1];
+  if (repeat !== 'all') return null;
+  if (shuffle){ if (!nextQueue) nextQueue = reshuffled(); return nextQueue[0]; }
+  return queue[0];
+}
+async function prefetchNext(){
+  const id = peekNextId();
+  if (nextPre && nextPre.id === id) return;
+  releasePre();
+  const m = id && id !== currentId && tracks.find(t => t.id === id); if (!m) return;
+  let src = null;
+  try { src = await store.source(m); } catch (e) { return; }
+  if (peekNextId() !== id || nextPre){ if (src.own) URL.revokeObjectURL(src.url); return; }
+  nextPre = Object.assign({ id }, src);
+}
+function applySource(m, src, autoplay, at){
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = src.own ? src.url : null;
+  currentId = m.id; pendingSeek = at;
+  audio.src = src.url;
+  updateNow(); markCurrent(); setMeta(m); savePos();
+  if (autoplay){ const p = audio.play(); if (p) p.catch(e => playErr(e, m)); }
+  prefetchNext();
+}
 async function load(id, { autoplay = true, at = 0 } = {}){
   const token = ++loadToken;
   const m = tracks.find(t => t.id === id); if (!m) return;
+  // Already loaded: switch right away, with no waiting
+  if (nextPre && nextPre.id === id){ const src = nextPre; nextPre = null; applySource(m, src, autoplay, at); return; }
   let src = null;
   try { src = await store.source(m); } catch (e) {}
   if (token !== loadToken){ if (src && src.own) URL.revokeObjectURL(src.url); return; }
   if (!src){ toast(`Couldn't load "${m.title}". Check your connection and try again.`); return; }
-  if (currentUrl) URL.revokeObjectURL(currentUrl);
-  currentUrl = src.own ? src.url : null;
-  currentId = id; pendingSeek = at;
-  audio.src = src.url;
-  updateNow(); markCurrent(); setMeta(m); savePos();
-  if (autoplay){ try { await audio.play(); } catch (e) { playErr(e, m); } }
+  applySource(m, src, autoplay, at);
 }
 function playFromList(id){
   if (id === currentId){ togglePlay(); return; }
@@ -635,15 +663,18 @@ function step(dir, auto){
   let n = qi + dir;
   if (n >= queue.length){
     if (repeat !== 'all'){ if (auto){ audio.pause(); audio.currentTime = 0; updateNow(); } return; }
-    if (shuffle){ const last = queue[qi]; queue = shuffleArr(queue.slice()); if (queue.length > 1 && queue[0] === last) queue.push(queue.shift()); }
+    if (shuffle){ queue = nextQueue || reshuffled(); nextQueue = null; }
     n = 0;
   }
   if (n < 0) n = repeat === 'all' ? queue.length - 1 : 0;
-  qi = n; load(queue[qi]);
+  qi = n;
+  if (queue[qi] === currentId){ audio.currentTime = 0; audio.play().catch(() => {}); return; }
+  load(queue[qi]);
 }
 function stopCurrent(){
   audio.pause(); audio.removeAttribute('src'); try { audio.load(); } catch (e) {}
   if (currentUrl) URL.revokeObjectURL(currentUrl);
+  releasePre(); nextQueue = null;
   currentUrl = null; currentId = null; queue = []; qi = -1; ls.set('cap.last', null);
 }
 
@@ -695,11 +726,11 @@ E.prev.addEventListener('click', () => step(-1));
 E.next.addEventListener('click', () => step(1));
 E.shuffle.addEventListener('click', () => {
   shuffle = !shuffle; ls.set('cap.shuffle', shuffle); applyToggles();
-  if (currentId) buildQueue(currentId);
+  if (currentId){ buildQueue(currentId); prefetchNext(); }
 });
 E.repeat.addEventListener('click', () => {
   repeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
-  ls.set('cap.repeat', repeat); applyToggles();
+  ls.set('cap.repeat', repeat); applyToggles(); prefetchNext();
 });
 E.seek.addEventListener('input', () => {
   scrubbing = true;
@@ -794,6 +825,7 @@ E.edDel.addEventListener('click', async () => {
   const t = tracks.find(x => x.id === editId); if (!t){ E.ed.close(); return; }
   try { await store.remove(t); } catch (e) { E.ed.close(); toast("Couldn't delete that track. Check your connection."); return; }
   tracks = tracks.filter(x => x.id !== t.id);
+  if (nextPre && nextPre.id === t.id) releasePre(); nextQueue = null;
   const p = queue.indexOf(t.id); if (p > -1){ queue.splice(p, 1); if (p < qi) qi--; }
   if (t.id === currentId) stopCurrent();
   E.ed.close(); render(); updateNow(); updateStorage(); toast('Track deleted.');
