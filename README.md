@@ -30,7 +30,7 @@ The Home Screen app and the regular browser keep separate libraries, so pick one
 
 1. Tap **Add music** and choose one file.
 2. Tap **Cut songs out of this file**.
-3. Find each song with Play, the 5 second skip buttons or the slider. Tap **Now** to set its start and end, or type a time like `1:05`.
+3. Find each song with Play, the 5 second skip buttons or the slider. Tap **Now** to set its start and end, or type the time as plain numbers, like `105` for 1:05 (no colon needed).
 4. Name the song, tap **Add clip to list**, and repeat for the next one.
 5. Tap **Save**.
 
@@ -47,6 +47,8 @@ Clip & Play doesn't download or provide lyrics. You add them yourself, and they'
 - **Fix a line's timing** corrects just one line: tap it, the song plays from just before it, and you tap when it starts. You can also nudge all lines earlier or later from the lyrics menu.
 - **Styles** give each song's lyrics its own look, from 24 choices: Clean, Cute, Elegant, Bold, Retro, Dreamy, Handwritten, Neon, Romantic, Comic, Typewriter, Anime, Gothic, Graffiti, Horror, Sci-fi, Western, Stencil, Storybook, Kawaii, Terminal, Disco, Ink brush and Pop. Each pairs its own lettering with effects like glows, outlines, highlight boxes and tilted lines, and most include fonts made for Korean and Japanese.
 
+Lyrics that are timed can be saved as a .lrc file from the lyrics menu, for example to auto-sync a song on a computer and import the result on a phone.
+
 The current line lights up as it's sung, with a sweep across the words. Tap any line to jump to it. Lyrics are included in backups.
 
 ## Where your music is stored
@@ -60,7 +62,7 @@ Browser storage can be erased if you clear your browser's website data or remove
 The app has no accounts, analytics or tracking, and your music never leaves your device. It makes these outside requests:
 
 - **Fonts** load from Google Fonts: the app's own two, plus a lyric style's fonts when you use that style. If they can't load, your device's fonts are used instead.
-- **Auto-sync**, only if you use it, downloads the transformers.js library from jsDelivr and the Whisper speech model (about 100 MB) from Hugging Face. The browser keeps them for next time. The AI runs on your device; your audio isn't sent anywhere.
+- **Auto-sync**, only if you use it, downloads the transformers.js library from jsDelivr and the Whisper speech model (about 80 MB) from Hugging Face. This happens once; the browser keeps them for later songs. On phones, a speech AI can need more memory than the phone allows, in which case the app restarts and tells you. The AI runs on your device; your audio isn't sent anywhere.
 
 ## Running your own copy
 

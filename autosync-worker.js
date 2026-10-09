@@ -16,9 +16,10 @@ async function load(id){
       postMessage({ id, type: 'progress', loaded, total });
     }
   };
-  // Smaller quantized files first; fall back if a variant isn't published for this model
+  // Smallest compressed versions first, to stay inside a phone's memory limit. The full-size version is
+  // deliberately not used: it's several times larger and phones close the app when it loads.
   let lastErr;
-  for (const dtype of ['q8', 'uint8', 'fp32']){
+  for (const dtype of [{ encoder_model: 'q8', decoder_model_merged: 'q4' }, 'q8', 'uint8']){
     try { return await T.pipeline('automatic-speech-recognition', MODEL, { device: 'wasm', dtype, progress_callback }); }
     catch (e) { lastErr = e; }
   }
