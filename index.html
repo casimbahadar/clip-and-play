@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Clip &amp; Play</title>
+<meta name="description" content="Cut songs out of long audio or video files and play them in a simple music library that stays on your device.">
+<meta name="theme-color" content="#141E36">
+<meta name="apple-mobile-web-app-title" content="Clip &amp; Play">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F6;--panel:#FFFFFF;--panel-2:#E2E7F1;--line:#C5CEDF;--ink:#16213A;--muted:#55627D;
+  --accent:#8A6400;--accent-ink:#FFFFFF;--accent-soft:#F6EBCB;--danger:#B03A2E;--scrim:rgba(10,16,30,.55);
+  --r-s:6px;--r-m:10px;--r-l:14px;--gut:16px;--ctl:44px;--bar-h:188px;
+  --font:"Figtree",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --pix:"Pixelify Sans","Figtree",ui-sans-serif,system-ui,sans-serif;
+  color-scheme:light dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141E36;--panel:#1E2C4D;--panel-2:#2A3D66;--line:#40568A;--ink:#EEF1F8;--muted:#A9B4CC;
+    --accent:#E8C15A;--accent-ink:#1A1405;--accent-soft:#3D3A28;--danger:#F08A7C;--scrim:rgba(4,8,18,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141E36;--panel:#1E2C4D;--panel-2:#2A3D66;--line:#40568A;--ink:#EEF1F8;--muted:#A9B4CC;
+  --accent:#E8C15A;--accent-ink:#1A1405;--accent-soft:#3D3A28;--danger:#F08A7C;--scrim:rgba(4,8,18,.7);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--font);-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+svg{display:block}
+
+.wrap{max-width:720px;margin:0 auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px var(--gut)}
+.mark{font:700 22px/1 var(--pix);margin:0;letter-spacing:.01em}
+
+.btn{min-height:var(--ctl);padding:0 16px;border-radius:var(--r-s);border:1px solid transparent;font:600 16px/1 var(--font);display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.btn svg{width:20px;height:20px}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-quiet{background:var(--panel-2);color:var(--ink)}
+.btn-danger{background:transparent;color:var(--danger);border-color:currentColor}
+.btn:disabled{opacity:.5;cursor:default}
+.icon{width:var(--ctl);height:var(--ctl);flex:none;display:inline-grid;place-items:center;border-radius:var(--r-s);background:transparent;border:0;color:var(--ink);cursor:pointer;padding:0}
+.icon svg{width:24px;height:24px}
+.icon[aria-pressed="true"]{color:var(--accent);background:var(--accent-soft)}
+.icon:disabled{opacity:.4;cursor:default}
+
+.tools{padding:0 var(--gut);display:grid;gap:8px}
+.field{width:100%;min-height:var(--ctl);border-radius:var(--r-s);border:1px solid var(--line);background:var(--panel);color:var(--ink);font:400 16px var(--font);padding:0 12px}
+.chips{display:flex;gap:8px;overflow-x:auto;margin:0 calc(-1 * var(--gut));padding:0 var(--gut) 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:var(--ctl);padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;font:500 15px var(--font);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.count{padding:12px var(--gut) 4px;color:var(--muted);font-size:14px;margin:0}
+.list{list-style:none;margin:0;padding:0 var(--gut)}
+.list li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+.row{flex:1;min-width:0;display:grid;grid-template-columns:16px minmax(0,1fr) auto;column-gap:12px;align-items:center;text-align:left;background:none;border:0;padding:12px 0;min-height:60px;cursor:pointer}
+.cur{color:var(--accent);visibility:hidden}
+.cur svg{width:10px;height:12px}
+li.on .cur{visibility:visible}
+li.on .t{color:var(--accent);font-weight:600}
+.t,.m{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m{color:var(--muted);font-size:14px}
+.d{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.none{padding:32px 0;color:var(--muted);text-align:center;border:0!important;display:block!important}
+.foot{padding:16px var(--gut) 0;color:var(--muted);font-size:14px;margin:0}
+.note{margin:12px var(--gut) 0;padding:12px 16px;border-radius:var(--r-m);background:var(--accent-soft);font-size:15px}
+main{padding-bottom:24px}
+body.has-bar main{padding-bottom:calc(var(--bar-h) + env(safe-area-inset-bottom,0px) + 24px)}
+
+.empty{text-align:center;padding:64px var(--gut);max-width:420px;margin:0 auto}
+.empty h2{font:700 22px/1.2 var(--pix);margin:0 0 8px}
+.empty p{color:var(--muted);margin:0 0 24px}
+.empty .btn{width:100%}
+
+.now{position:fixed;left:0;right:0;bottom:0;padding:8px 8px calc(8px + max(12px, env(safe-area-inset-bottom,0px)));background:var(--bg);z-index:5}
+.win{max-width:640px;margin:0 auto;background:var(--panel);border:2px solid var(--line);border-radius:var(--r-l);box-shadow:inset 0 0 0 3px var(--panel),inset 0 0 0 4px var(--line);padding:12px 16px 8px}
+.np-title{font:600 17px/1.3 var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+.np-sub{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;min-height:20px}
+.seek{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center;margin-top:4px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.seek span:last-child{text-align:right}
+.ctrls{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.play{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--accent-ink)}
+.play svg{width:28px;height:28px}
+
+.range{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer;--p:0%}
+.range::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(to right,var(--accent) var(--p),var(--panel-2) var(--p))}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);margin-top:-6px;border:2px solid var(--panel)}
+.range::-moz-range-track{height:6px;border-radius:3px;background:var(--panel-2)}
+.range::-moz-range-progress{height:6px;border-radius:3px;background:var(--accent)}
+.range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
+.range:disabled{opacity:.5}
+
+dialog{border:0;padding:0;background:transparent;width:100%;max-width:none;max-height:100dvh;margin:auto auto 0;color:var(--ink)}
+dialog::backdrop{background:var(--scrim)}
+.sheet{background:var(--panel);border:2px solid var(--line);border-bottom:0;border-radius:var(--r-l) var(--r-l) 0 0;padding:24px var(--gut) calc(24px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto}
+.sheet h2{font:700 20px/1.2 var(--pix);margin:0 0 4px}
+.sheet p{margin:0;color:var(--muted);overflow-wrap:anywhere}
+.sheet label{display:block;font-weight:600;font-size:15px;margin:16px 0 8px}
+.hint{font-size:14px;margin-top:8px!important}
+.actions{display:flex;gap:12px;margin-top:24px}
+.actions .btn{flex:1}
+.stack{display:grid;gap:12px;margin-top:24px}
+.stack .btn{width:100%}
+.prog{min-height:22px;margin-top:12px!important;font-variant-numeric:tabular-nums}
+
+.sheet.tall{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
+.wide{width:100%;margin-top:16px}
+.pair{display:grid;grid-template-columns:1fr;column-gap:16px}
+@media (min-width:480px){.pair{grid-template-columns:1fr 1fr}}
+.inrow{display:flex;gap:8px}
+.inrow .field{flex:1;min-width:0}
+.inrow .btn{flex:none;width:76px}
+.trio{display:flex;gap:12px;margin-top:12px}
+.trio .btn{flex:1}
+.clips{list-style:none;margin:16px 0 0;padding:0;border-top:1px solid var(--line)}
+.clips li{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:8px 0}
+.ct{flex:1;min-width:0}
+.cn{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.cm{display:block;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.warn{color:var(--danger)!important;margin-top:8px!important}
+.sheet .seek{margin-top:16px}
+.bkrow{display:flex;gap:12px;padding:12px var(--gut) 0}
+.bkrow .btn{flex:1}
+.empty .btn + .btn{margin-top:12px}
+.toast{position:fixed;left:var(--gut);right:var(--gut);bottom:calc(24px + env(safe-area-inset-bottom,0px));margin:0 auto;max-width:480px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:var(--r-m);font-size:15px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;z-index:20}
+body.has-bar .toast{bottom:calc(var(--bar-h) + env(safe-area-inset-bottom,0px) + 12px)}
+.toast.show{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media (hover:hover){.row:hover .t{text-decoration:underline}.chip:hover{border-color:var(--ink)}}
+@media (min-width:720px){.top{padding-top:32px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="mark">Clip &amp; Play</h1>
+    <button type="button" class="btn btn-primary" id="addBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>Add music</button>
+  </header>
+  <input type="file" id="restoreFile" multiple hidden>
+  <input type="file" id="file" accept="audio/*,video/mp4,video/webm,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac,.mp4,.m4v,.webm" multiple hidden>
+  <p class="note" id="memNote" hidden>This browser isn't allowing saved storage here, so your library will clear when you close the page.</p>
+  <main>
+    <p class="count" id="loading">Loading your library</p>
+    <section class="empty" id="empty" hidden>
+      <h2>Your library is empty</h2>
+      <p>Add music files from your phone. They stay on this device and nothing is uploaded.</p>
+      <button type="button" class="btn btn-primary" id="emptyAdd">Add music</button>
+      <button type="button" class="btn btn-quiet" id="emptyRestore" hidden>Restore from a backup</button>
+    </section>
+    <section id="library" hidden>
+      <div class="tools">
+        <input class="field" id="search" type="search" placeholder="Search tracks" aria-label="Search tracks" autocomplete="off">
+        <div class="chips" id="chips" role="group" aria-label="Collections"></div>
+      </div>
+      <p class="count" id="count" aria-live="polite"></p>
+      <ul class="list" id="list"></ul>
+      <p class="foot" id="storage"></p>
+      <div class="bkrow" id="bkRow" hidden>
+        <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
+        <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="now" id="now" hidden>
+  <div class="win">
+    <p class="np-title" id="npTitle">Nothing playing</p>
+    <p class="np-sub" id="npSub">Pick a track</p>
+    <div class="seek">
+      <span id="tCur">0:00</span>
+      <input class="range" id="seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Seek" disabled>
+      <span id="tDur">0:00</span>
+    </div>
+    <div class="ctrls">
+      <button type="button" class="icon" id="shuffle" aria-label="Shuffle" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h3.5c2 0 3.2 1 4.3 2.6l2.4 4.8C14.3 16 15.5 17 17.5 17H21M18 14l3 3-3 3M3 17h3.5c1.2 0 2.1-.4 2.9-1.1M13.6 8.1c.8-.7 1.7-1.1 2.9-1.1H21M18 4l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="icon" id="prev" aria-label="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 5h2v14H6zM20 5v14L9 12z" fill="currentColor"/></svg></button>
+      <button type="button" class="icon play" id="play" aria-label="Play"></button>
+      <button type="button" class="icon" id="next" aria-label="Next track"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 5h2v14h-2zM4 5v14l11-7z" fill="currentColor"/></svg></button>
+      <button type="button" class="icon" id="repeat" aria-label="Repeat off" aria-pressed="false"></button>
+    </div>
+  </div>
+</div>
+
+<dialog id="importDlg" aria-labelledby="impH">
+  <div class="sheet">
+    <h2 id="impH">Add to library</h2>
+    <p id="impInfo"></p>
+    <p class="hint warn" id="impWarn" hidden></p>
+    <label for="impCol">Collection</label>
+    <input class="field" id="impCol" list="cols" placeholder="For example, Fire Emblem" autocomplete="off">
+    <p class="hint">Optional. Use it to group tracks by game or series.</p>
+    <p class="prog" id="impProg" aria-live="polite"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="impCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="impGo">Add tracks</button>
+    </div>
+    <div class="stack">
+      <button type="button" class="btn btn-quiet" id="impCut" hidden>Cut songs out of this file</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="editDlg" aria-labelledby="edH">
+  <div class="sheet">
+    <h2 id="edH">Edit track</h2>
+    <label for="edTitle">Title</label>
+    <input class="field" id="edTitle" autocomplete="off">
+    <label for="edCol">Collection</label>
+    <input class="field" id="edCol" list="cols" autocomplete="off">
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="edCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="edSave">Save changes</button>
+    </div>
+    <div class="stack">
+      <button type="button" class="btn btn-danger" id="edDel">Delete track</button>
+    </div>
+  </div>
+</dialog>
+<dialog id="cutDlg" aria-labelledby="cutH">
+  <div class="sheet tall">
+    <h2 id="cutH">Cut songs</h2>
+    <p id="cFile"></p>
+    <div class="seek">
+      <span id="cTCur">0:00</span>
+      <input class="range" id="cSeek" type="range" min="0" max="1000" step="1" value="0" aria-label="Position in file">
+      <span id="cTDur">0:00</span>
+    </div>
+    <div class="trio">
+      <button type="button" class="btn btn-quiet" id="cBack" aria-label="Back 5 seconds">&minus;5s</button>
+      <button type="button" class="btn btn-primary" id="cPlay">Play</button>
+      <button type="button" class="btn btn-quiet" id="cFwd" aria-label="Ahead 5 seconds">+5s</button>
+    </div>
+    <div class="pair">
+      <div>
+        <label for="cStart">Start</label>
+        <div class="inrow"><input class="field" id="cStart" inputmode="decimal" autocomplete="off"><button type="button" class="btn btn-quiet" id="cStartNow" aria-label="Set start to current position">Now</button></div>
+      </div>
+      <div>
+        <label for="cEnd">End</label>
+        <div class="inrow"><input class="field" id="cEnd" inputmode="decimal" autocomplete="off" placeholder="m:ss"><button type="button" class="btn btn-quiet" id="cEndNow" aria-label="Set end to current position">Now</button></div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-quiet wide" id="cPreview">Preview clip</button>
+    <label for="cName">Song name</label>
+    <input class="field" id="cName" autocomplete="off" placeholder="Name this song">
+    <label for="cCol">Collection</label>
+    <input class="field" id="cCol" list="cols" autocomplete="off" placeholder="For example, Digimon">
+    <button type="button" class="btn btn-quiet wide" id="cAdd">Add clip to list</button>
+    <ul class="clips" id="cList" hidden></ul>
+    <p class="hint" id="cHow"></p>
+    <p class="prog" id="cProg" aria-live="polite"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="cCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="cSave" disabled>Save clip</button>
+    </div>
+  </div>
+</dialog>
+<dialog id="bkDlg" aria-labelledby="bkH">
+  <div class="sheet">
+    <h2 id="bkH">Back up library</h2>
+    <p>Saves all your tracks to a backup file. Keep it somewhere outside this browser, like iCloud Drive or Google Drive, and use Restore to bring everything back.</p>
+    <p class="prog" id="bkProg" aria-live="polite"></p>
+    <div class="stack" id="bkParts"></div>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="bkClose">Done</button>
+    </div>
+  </div>
+</dialog>
+<datalist id="cols"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const E = {
+  list:$('#list'),count:$('#count'),chips:$('#chips'),search:$('#search'),file:$('#file'),addBtn:$('#addBtn'),
+  empty:$('#empty'),emptyAdd:$('#emptyAdd'),library:$('#library'),loading:$('#loading'),now:$('#now'),npTitle:$('#npTitle'),npSub:$('#npSub'),
+  seek:$('#seek'),tCur:$('#tCur'),tDur:$('#tDur'),play:$('#play'),prev:$('#prev'),next:$('#next'),
+  shuffle:$('#shuffle'),repeat:$('#repeat'),toast:$('#toast'),storage:$('#storage'),memNote:$('#memNote'),cols:$('#cols'),
+  imp:$('#importDlg'),impInfo:$('#impInfo'),impWarn:$('#impWarn'),impCol:$('#impCol'),impGo:$('#impGo'),impCancel:$('#impCancel'),impCut:$('#impCut'),impProg:$('#impProg'),
+  ed:$('#editDlg'),edTitle:$('#edTitle'),edCol:$('#edCol'),edSave:$('#edSave'),edDel:$('#edDel'),edCancel:$('#edCancel'),
+  cut:$('#cutDlg'),cFile:$('#cFile'),cSeek:$('#cSeek'),cTCur:$('#cTCur'),cTDur:$('#cTDur'),cPlay:$('#cPlay'),cBack:$('#cBack'),cFwd:$('#cFwd'),
+  cStart:$('#cStart'),cEnd:$('#cEnd'),cStartNow:$('#cStartNow'),cEndNow:$('#cEndNow'),cPreview:$('#cPreview'),cName:$('#cName'),cCol:$('#cCol'),
+  bkRow:$('#bkRow'),bkBtn:$('#bkBtn'),rsBtn:$('#rsBtn'),emptyRestore:$('#emptyRestore'),restoreFile:$('#restoreFile'),
+  bk:$('#bkDlg'),bkProg:$('#bkProg'),bkParts:$('#bkParts'),bkClose:$('#bkClose'),
+  cAdd:$('#cAdd'),cList:$('#cList'),cHow:$('#cHow'),cProg:$('#cProg'),cCancel:$('#cCancel'),cSave:$('#cSave')
+};
+const SVG = (inner, filled) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${filled ? `<g fill="currentColor">${inner}</g>` : `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`}</svg>`;
+const ICON = {
+  play: SVG('<path d="M8 5v14l11-7z"/>', true),
+  pause: SVG('<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>', true),
+  more: SVG('<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>', true),
+  x: SVG('<path d="M6 6l12 12M18 6L6 18"/>'),
+  repeat: SVG('<path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3"/>'),
+  repeatOne: SVG('<path d="M4 11V9a3 3 0 0 1 3-3h12M16 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H5M8 21l-3-3 3-3M11.5 10.5l1-.5v4.5"/>'),
+  cursor: '<svg viewBox="0 0 10 12" aria-hidden="true" focusable="false"><path d="M0 0l10 6-10 6z" fill="currentColor"/></svg>'
+};
+const ls = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+// ---------- helpers ----------
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const fmt = s => {
+  if (!isFinite(s) || s < 0) s = 0; s = Math.floor(s);
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`;
+};
+const fmtT = s => { s = Math.max(0, Math.round((s || 0) * 10) / 10); const m = Math.floor(s / 60); return `${m}:${(s - m * 60).toFixed(1).padStart(4, '0')}`; };
+const parseTime = v => {
+  v = String(v || '').trim().replace(',', '.'); if (!v) return NaN;
+  const p = v.split(':').map(Number);
+  if (p.length > 3 || p.some(x => !isFinite(x) || x < 0)) return NaN;
+  return p.reduce((a, x) => a * 60 + x, 0);
+};
+const fmtSize = b => b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.max(1, Math.round(b / 1e6)) + ' MB';
+const EXT = { mp3:'audio/mpeg', m4a:'audio/mp4', mp4:'audio/mp4', m4v:'audio/mp4', aac:'audio/aac', wav:'audio/wav', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/ogg', flac:'audio/flac', webm:'audio/webm' };
+const extOf = n => (n.split('.').pop() || '').toLowerCase();
+const typeOf = f => (f.type && f.type.startsWith('audio/')) ? f.type : (EXT[extOf(f.name)] || f.type || 'audio/mpeg');
+// Tidies converter names: "site.com - Title (Official Video) [1080p] [videoID].mp4" becomes "Title"
+const cleanName = n => {
+  let s = n.replace(/\.[^.]+$/, '');
+  s = s.replace(/^\s*[\w-]+\.(?:com|net|org|io|cc|to|co|me|app|ch|pro|is)\s*-\s*/i, '');
+  s = s.replace(/\s*\[(?=[^\]]*[0-9_-])[A-Za-z0-9_-]{11}\]\s*$/, '');
+  s = s.replace(/\s*[\[(]\s*(?:\d{2,3}\s*k(?:bps)?|\d{3,4}p(?:\d{2})?|hd|hq|4k)\s*[\])]/gi, '');
+  s = s.replace(/\s*[\[(]\s*official\s+(?:music\s+|lyric\s+)?(?:video|audio)\s*[\])]/gi, '');
+  s = s.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+  return s || 'Untitled';
+};
+const coll = t => t.collection || '';
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const shuffleArr = a => { for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const isQuota = e => !!e && (e.code === 'quota_or_state' || e.code === 'quota_exceeded' || e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''));
+let toastTimer = 0;
+function toast(msg){
+  E.toast.textContent = msg; E.toast.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => E.toast.classList.remove('show'), 4500);
+}
+function probe(blob){
+  return new Promise((res, rej) => {
+    const a = new Audio(); const u = URL.createObjectURL(blob); let fin = false;
+    const end = (fn, v) => { if (fin) return; fin = true; clearTimeout(tm); a.removeAttribute('src'); try { a.load(); } catch (e) {} URL.revokeObjectURL(u); fn(v); };
+    const tm = setTimeout(() => end(res, 0), 10000);
+    a.preload = 'metadata';
+    a.onloadedmetadata = () => end(res, isFinite(a.duration) ? a.duration : 0);
+    a.onerror = () => end(rej, new Error('unsupported'));
+    a.src = u;
+  });
+}
+
+// ---------- storage ----------
+// "server": files saved with this artifact (assets) and the track list in its database (db).
+// "local": this browser only (IndexedDB). "memory": nothing survives closing the page.
+const MAX_ASSET = 20 * 1024 * 1024;
+const MAX_B64_SOURCE = Math.floor(MAX_ASSET * 3 / 4) - 64;
+let mode = 'memory', loadFailed = false, sdb = null, sassets = null, idb = null;
+const containerOf = t => /^(audio|video)\/(mp4|x-m4a|m4a)$/i.test(t || '') ? 'mp4' : /^(audio|video)\/webm$/i.test(t || '') ? 'webm' : null;
+const limitFor = t => mode !== 'server' ? Infinity : (containerOf(t) ? MAX_ASSET : MAX_B64_SOURCE);
+const toB64 = blob => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => { const s = String(r.result); res(s.slice(s.indexOf(',') + 1)); };
+  r.onerror = () => rej(r.error); r.readAsDataURL(blob);
+});
+const fromB64 = s => { const bin = atob(s.trim()); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; };
+
+const server = {
+  col(){ return sdb.collection('tracks'); },
+  async all(){ const s = await server.col().limit(1000).get(); return s.docs.map(d => Object.assign({ id: d.id }, d.data())); },
+  async put(meta, payload){
+    if (payload){
+      // MP4 and WebM can be stored as they are. Other formats (MP3, WAV...) are stored as base64 text.
+      const kind = containerOf(meta.type);
+      const body = kind ? payload.blob : new Blob([await toB64(payload.blob)], { type: 'text/plain' });
+      if (body.size > MAX_ASSET) throw { code: 'too_large' };
+      const r = await sassets.upload(body, { type: kind ? 'video/' + kind : 'text/plain' });
+      meta.asset = r.id; meta.enc = kind ? 'raw' : 'b64';
+    }
+    const doc = {};
+    for (const k of ['title', 'collection', 'duration', 'size', 'type', 'added', 'asset', 'enc']) if (meta[k] !== undefined) doc[k] = meta[k];
+    try { await server.col().doc(meta.id).set(doc); }
+    catch (e){ if (payload && meta.asset){ try { await sassets.delete(meta.asset); } catch (x) {} } throw e; }
+  },
+  async source(meta){
+    const url = '/_blob/' + meta.asset;
+    if (meta.enc !== 'b64') return { url, own: false };
+    const r = await fetch(url); if (!r.ok) throw new Error('fetch ' + r.status);
+    return { url: URL.createObjectURL(new Blob([fromB64(await r.text())], { type: meta.type })), own: true };
+  },
+  async remove(meta){
+    await server.col().doc(meta.id).delete();
+    if (meta.asset){ try { await sassets.delete(meta.asset); } catch (e) {} }
+  },
+  async usage(){ try { return (await sassets.list()).usage; } catch (e) { return null; } }
+};
+function openDB(){
+  return new Promise((res, rej) => {
+    let r;
+    try { r = indexedDB.open('clip-and-play', 1); } catch (e) { return rej(e); }
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains('tracks')) d.createObjectStore('tracks', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('audio')) d.createObjectStore('audio', { keyPath: 'id' });
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error('blocked'));
+  });
+}
+const done = t => new Promise((res, rej) => { t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('aborted')); });
+const local = {
+  async all(){ const t = idb.transaction('tracks'); const r = t.objectStore('tracks').getAll(); await done(t); return r.result || []; },
+  async put(meta, payload){
+    const t = idb.transaction(['tracks', 'audio'], 'readwrite');
+    t.objectStore('tracks').put(meta);
+    if (payload) t.objectStore('audio').put({ id: meta.id, blob: payload.blob, type: meta.type });
+    await done(t);
+  },
+  async blob(meta){
+    const t = idb.transaction('audio'); const r = t.objectStore('audio').get(meta.id); await done(t);
+    const rec = r.result; if (!rec) return null;
+    return rec.blob || new Blob([rec.buf], { type: rec.type || meta.type });
+  },
+  async source(meta){
+    const b = await local.blob(meta); if (!b) throw new Error('missing');
+    return { url: URL.createObjectURL(b), own: true };
+  },
+  async remove(meta){ const t = idb.transaction(['tracks', 'audio'], 'readwrite'); t.objectStore('tracks').delete(meta.id); t.objectStore('audio').delete(meta.id); await done(t); },
+  async usage(){ return null; }
+};
+const mem = { t: new Map(), a: new Map() };
+const memory = {
+  async all(){ return [...mem.t.values()]; },
+  async put(meta, payload){ mem.t.set(meta.id, meta); if (payload) mem.a.set(meta.id, payload.blob); },
+  async source(meta){ const b = mem.a.get(meta.id); if (!b) throw new Error('missing'); return { url: URL.createObjectURL(b), own: true }; },
+  async remove(meta){ mem.t.delete(meta.id); mem.a.delete(meta.id); },
+  async usage(){ return null; }
+};
+let store = memory;
+async function initStorage(){
+  const C = window.claude;
+  if (C && typeof C.use === 'function'){
+    try {
+      const [d, a] = await Promise.all([C.use('db'), C.use('assets')]);
+      if (d && a){ sdb = d; sassets = a; mode = 'server'; store = server; return; }
+    } catch (e) {}
+  }
+  try { idb = await openDB(); mode = 'local'; store = local; } catch (e) { mode = 'memory'; store = memory; }
+}
+
+// ---------- state ----------
+let tracks = [], loaded = false;
+let filter = ls.get('cap.filter', '__all');
+let query = '';
+let shuffle = !!ls.get('cap.shuffle', false);
+let repeat = ls.get('cap.repeat', 'off');
+if (!['off', 'all', 'one'].includes(repeat)) repeat = 'off';
+let queue = [], qi = -1, currentId = null, currentUrl = null, scrubbing = false, loadToken = 0, pendingSeek = 0, lastSave = 0;
+const audio = new Audio(); audio.preload = 'auto';
+const cur = () => tracks.find(t => t.id === currentId);
+
+const sorted = () => [...tracks].sort((a, b) => collator.compare(coll(a), coll(b)) || collator.compare(a.title, b.title));
+const collections = () => [...new Set(tracks.map(coll).filter(Boolean))].sort(collator.compare);
+function visible(){
+  const q = query.trim().toLowerCase();
+  return sorted().filter(t =>
+    (filter === '__all' || (filter === '__none' ? !coll(t) : coll(t) === filter)) &&
+    (!q || t.title.toLowerCase().includes(q) || coll(t).toLowerCase().includes(q)));
+}
+
+// ---------- render ----------
+function render(){
+  const has = tracks.length > 0;
+  E.loading.hidden = loaded;
+  E.empty.hidden = !loaded || has; E.library.hidden = !has; E.now.hidden = !has;
+  document.body.classList.toggle('has-bar', has);
+  renderChips(); renderList();
+  E.cols.replaceChildren(...collections().map(c => { const o = document.createElement('option'); o.value = c; return o; }));
+}
+function renderChips(){
+  const cs = collections(); const unsorted = tracks.some(t => !coll(t));
+  if (filter === '__none' ? !unsorted : (filter !== '__all' && !cs.includes(filter))) filter = '__all';
+  const items = [['__all', 'All'], ...cs.map(c => [c, c]), ...(unsorted && cs.length ? [['__none', 'Unsorted']] : [])];
+  E.chips.hidden = items.length <= 1;
+  E.chips.replaceChildren(...items.map(([v, l]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = l;
+    b.setAttribute('aria-pressed', String(v === filter));
+    b.addEventListener('click', () => { filter = v; ls.set('cap.filter', v); renderChips(); renderList(); });
+    return b;
+  }));
+}
+function renderList(){
+  const v = visible();
+  E.count.textContent = v.length === tracks.length
+    ? `${tracks.length} track${tracks.length === 1 ? '' : 's'}`
+    : `${v.length} of ${tracks.length} tracks`;
+  const frag = document.createDocumentFragment();
+  if (!v.length){
+    const li = document.createElement('li'); li.className = 'none'; li.textContent = 'No tracks match that search.'; frag.append(li);
+  }
+  for (const t of v){
+    const li = document.createElement('li'); li.dataset.id = t.id;
+    if (t.id === currentId) li.classList.add('on');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'row';
+    b.innerHTML = `<span class="cur">${ICON.cursor}</span><span><span class="t"></span><span class="m"></span></span><span class="d"></span>`;
+    b.querySelector('.t').textContent = t.title;
+    const m = b.querySelector('.m');
+    if (filter === '__all' && collections().length) m.textContent = coll(t) || 'Unsorted'; else m.remove();
+    b.querySelector('.d').textContent = t.duration ? fmt(Math.round(t.duration)) : '';
+    b.addEventListener('click', () => playFromList(t.id));
+    const e = document.createElement('button'); e.type = 'button'; e.className = 'icon';
+    e.setAttribute('aria-label', 'Edit ' + t.title); e.innerHTML = ICON.more;
+    e.addEventListener('click', () => openEdit(t.id));
+    li.append(b, e); frag.append(li);
+  }
+  E.list.replaceChildren(frag);
+}
+function markCurrent(){
+  E.list.querySelectorAll('li[data-id]').forEach(li => li.classList.toggle('on', li.dataset.id === currentId));
+}
+function updateNow(){
+  const m = cur();
+  E.npTitle.textContent = m ? m.title : 'Nothing playing';
+  E.npSub.textContent = m ? (coll(m) || ' ') : 'Pick a track';
+  const playing = !audio.paused && !!m;
+  E.play.innerHTML = playing ? ICON.pause : ICON.play;
+  E.play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  E.seek.disabled = !m;
+  E.prev.disabled = E.next.disabled = !m;
+  updateTime();
+}
+function trackDur(m){ return isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (m && m.duration) || 0; }
+function updateTime(){
+  const m = cur(); const d = trackDur(m);
+  const c = m ? audio.currentTime || 0 : 0;
+  if (!scrubbing){
+    E.tCur.textContent = fmt(c);
+    E.seek.value = d ? Math.round(c / d * 1000) : 0;
+  }
+  E.tDur.textContent = fmt(Math.round(d));
+  E.seek.style.setProperty('--p', (E.seek.value / 10) + '%');
+}
+function applyToggles(){
+  E.shuffle.setAttribute('aria-pressed', String(shuffle));
+  E.repeat.innerHTML = repeat === 'one' ? ICON.repeatOne : ICON.repeat;
+  E.repeat.setAttribute('aria-pressed', String(repeat !== 'off'));
+  E.repeat.setAttribute('aria-label', repeat === 'off' ? 'Repeat off' : repeat === 'all' ? 'Repeat all' : 'Repeat this track');
+}
+async function updateStorage(){
+  const note = loadFailed ? "Couldn't load your saved library. Check your connection, then reopen this page."
+    : mode === 'local' ? '' 
+    : mode === 'memory' ? "This browser isn't allowing saved storage here, so your library will clear when you close the page." : '';
+  E.memNote.textContent = note; E.memNote.hidden = !note;
+  E.bkRow.hidden = mode !== 'local' || !tracks.length;
+  E.emptyRestore.hidden = mode !== 'local';
+  if (!tracks.length){ E.storage.textContent = ''; return; }
+  if (mode === 'server'){
+    const u = await store.usage();
+    E.storage.textContent = u && u.maxBytes ? `${fmtSize(u.bytes)} of ${fmtSize(u.maxBytes)} used online` : 'Saved online';
+  } else if (mode === 'local'){
+    let est = null;
+    try { if (navigator.storage && navigator.storage.estimate) est = await navigator.storage.estimate(); } catch (e) {}
+    E.storage.textContent = est && est.quota
+      ? `${fmtSize(est.usage || 0)} used of about ${fmtSize(est.quota)} this browser allows`
+      : `${fmtSize(tracks.reduce((s, t) => s + (t.size || 0), 0))} stored on this device`;
+  } else E.storage.textContent = '';
+}
+let persistAsked = ls.get('cap.persist', false);
+function requestPersist(){
+  if (mode !== 'local' || persistAsked || !navigator.storage || !navigator.storage.persist) return;
+  persistAsked = true; ls.set('cap.persist', true);
+  navigator.storage.persist().catch(() => {});
+}
+
+// ---------- playback ----------
+function buildQueue(startId){
+  let ids = visible().map(t => t.id);
+  if (!ids.includes(startId)) ids.unshift(startId);
+  if (shuffle){ ids = shuffleArr(ids.filter(i => i !== startId)); ids.unshift(startId); }
+  queue = ids; qi = ids.indexOf(startId);
+}
+function savePos(){ if (currentId) ls.set('cap.last', { id: currentId, t: Math.floor(audio.currentTime || 0) }); }
+function playErr(e, m){
+  if (!e || e.name === 'AbortError') return;
+  if (e.name === 'NotAllowedError') toast('Tap play to start.');
+  else toast(`Couldn't play "${m ? m.title : 'this track'}".`);
+}
+async function load(id, { autoplay = true, at = 0 } = {}){
+  const token = ++loadToken;
+  const m = tracks.find(t => t.id === id); if (!m) return;
+  let src = null;
+  try { src = await store.source(m); } catch (e) {}
+  if (token !== loadToken){ if (src && src.own) URL.revokeObjectURL(src.url); return; }
+  if (!src){ toast(`Couldn't load "${m.title}". Check your connection and try again.`); return; }
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = src.own ? src.url : null;
+  currentId = id; pendingSeek = at;
+  audio.src = src.url;
+  updateNow(); markCurrent(); setMeta(m); savePos();
+  if (autoplay){ try { await audio.play(); } catch (e) { playErr(e, m); } }
+}
+function playFromList(id){
+  if (id === currentId){ togglePlay(); return; }
+  buildQueue(id); load(id);
+}
+function togglePlay(){
+  if (!currentId){
+    const v = visible(); if (!v.length) return;
+    const start = shuffle ? v[Math.floor(Math.random() * v.length)].id : v[0].id;
+    buildQueue(start); load(start); return;
+  }
+  if (audio.paused) audio.play().catch(e => playErr(e, cur()));
+  else audio.pause();
+}
+function step(dir, auto){
+  if (!queue.length) return;
+  if (dir < 0 && audio.currentTime > 3){ audio.currentTime = 0; return; }
+  let n = qi + dir;
+  if (n >= queue.length){
+    if (repeat !== 'all'){ if (auto){ audio.pause(); audio.currentTime = 0; updateNow(); } return; }
+    if (shuffle){ const last = queue[qi]; queue = shuffleArr(queue.slice()); if (queue.length > 1 && queue[0] === last) queue.push(queue.shift()); }
+    n = 0;
+  }
+  if (n < 0) n = repeat === 'all' ? queue.length - 1 : 0;
+  qi = n; load(queue[qi]);
+}
+function stopCurrent(){
+  audio.pause(); audio.removeAttribute('src'); try { audio.load(); } catch (e) {}
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = null; currentId = null; queue = []; qi = -1; ls.set('cap.last', null);
+}
+
+audio.addEventListener('loadedmetadata', () => {
+  if (pendingSeek){ try { audio.currentTime = pendingSeek; } catch (e) {} pendingSeek = 0; }
+  const m = cur();
+  if (m && !m.duration && isFinite(audio.duration) && audio.duration > 0){
+    m.duration = audio.duration; store.put(m).catch(() => {}); renderList();
+  }
+  updateTime(); mediaPos();
+});
+audio.addEventListener('play', updateNow);
+audio.addEventListener('pause', () => { updateNow(); savePos(); });
+audio.addEventListener('timeupdate', () => {
+  updateTime(); mediaPos();
+  const now = Date.now(); if (now - lastSave > 5000){ lastSave = now; savePos(); }
+});
+audio.addEventListener('ended', () => {
+  if (repeat === 'one'){ audio.currentTime = 0; audio.play().catch(() => {}); }
+  else step(1, true);
+});
+audio.addEventListener('error', () => { if (currentId && audio.src) toast(`Couldn't play "${cur() ? cur().title : 'this track'}".`); });
+
+// Lock screen and headphone controls, where the browser supports them
+const ms = 'mediaSession' in navigator ? navigator.mediaSession : null;
+function setMeta(m){
+  if (!ms || typeof MediaMetadata === 'undefined') return;
+  try { ms.metadata = new MediaMetadata({ title: m.title, artist: coll(m), album: 'Clip & Play' }); } catch (e) {}
+}
+function mediaPos(){
+  if (!ms || !ms.setPositionState) return;
+  const d = audio.duration; if (!isFinite(d) || d <= 0) return;
+  try { ms.setPositionState({ duration: d, playbackRate: audio.playbackRate || 1, position: Math.min(audio.currentTime || 0, d) }); } catch (e) {}
+}
+if (ms){
+  const h = (a, f) => { try { ms.setActionHandler(a, f); } catch (e) {} };
+  h('play', () => { if (currentId) audio.play().catch(() => {}); else togglePlay(); });
+  h('pause', () => audio.pause());
+  h('previoustrack', () => step(-1));
+  h('nexttrack', () => step(1));
+  h('seekto', d => { if (d.seekTime != null) audio.currentTime = d.seekTime; });
+  h('seekbackward', d => { audio.currentTime = Math.max(0, audio.currentTime - (d.seekOffset || 10)); });
+  h('seekforward', d => { audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + (d.seekOffset || 10)); });
+}
+
+// ---------- controls ----------
+E.play.addEventListener('click', togglePlay);
+E.prev.addEventListener('click', () => step(-1));
+E.next.addEventListener('click', () => step(1));
+E.shuffle.addEventListener('click', () => {
+  shuffle = !shuffle; ls.set('cap.shuffle', shuffle); applyToggles();
+  if (currentId) buildQueue(currentId);
+});
+E.repeat.addEventListener('click', () => {
+  repeat = repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off';
+  ls.set('cap.repeat', repeat); applyToggles();
+});
+E.seek.addEventListener('input', () => {
+  scrubbing = true;
+  const d = trackDur(cur());
+  E.tCur.textContent = fmt(E.seek.value / 1000 * d);
+  E.seek.style.setProperty('--p', (E.seek.value / 10) + '%');
+});
+E.seek.addEventListener('change', () => {
+  const d = trackDur(cur());
+  if (d) audio.currentTime = E.seek.value / 1000 * d;
+  scrubbing = false; updateTime();
+});
+E.search.addEventListener('input', () => { query = E.search.value; renderList(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') savePos(); });
+window.addEventListener('pagehide', savePos);
+
+// ---------- add music ----------
+let pending = [], busy = false, goBlocked = false;
+const pickFiles = () => { if (!loaded) return; E.file.click(); };
+E.addBtn.addEventListener('click', pickFiles);
+E.emptyAdd.addEventListener('click', pickFiles);
+const tooBig = f => f.size > limitFor(typeOf(f));
+E.file.addEventListener('change', () => {
+  pending = [...E.file.files]; E.file.value = '';
+  if (!pending.length) return;
+  const bytes = pending.reduce((s, f) => s + f.size, 0);
+  const vids = pending.some(f => (f.type || '').startsWith('video/') || /\.(mp4|m4v|webm)$/i.test(f.name));
+  E.impInfo.textContent = (pending.length === 1 ? pending[0].name : `${pending.length} files selected`) + ` (${fmtSize(bytes)})` +
+    (vids ? '. Video files play as audio here, but the whole video is stored, so audio-only files save space.' : '');
+  const single = pending.length === 1, big = pending.filter(tooBig);
+  E.impCut.hidden = !single;
+  goBlocked = single && big.length === 1;
+  E.impWarn.textContent = !big.length ? ''
+    : single ? `This file is over the ${fmtSize(limitFor(typeOf(pending[0])))} limit for one track. Cut songs out of it instead.`
+    : `${big.length} of these ${big.length === 1 ? 'is' : 'are'} over the size limit for one track and will be skipped. Add ${big.length === 1 ? 'it' : 'each one'} on its own to cut songs out.`;
+  E.impWarn.hidden = !big.length;
+  E.impCol.value = (filter !== '__all' && filter !== '__none') ? filter : '';
+  E.impProg.textContent = ''; setBusy(false);
+  E.imp.showModal();
+});
+function setBusy(b){ busy = b; E.impGo.disabled = b || goBlocked; E.impCancel.disabled = b; E.impCol.disabled = b; E.impCut.disabled = b; }
+E.imp.addEventListener('cancel', e => { if (busy) e.preventDefault(); });
+E.impCancel.addEventListener('click', () => { pending = []; E.imp.close(); });
+E.impCut.addEventListener('click', () => {
+  const f = pending[0], col = E.impCol.value.trim(); pending = []; E.imp.close(); openCutter(f, col);
+});
+E.impGo.addEventListener('click', async () => {
+  const col = E.impCol.value.trim(); const files = pending; setBusy(true);
+  let ok = 0, quota = false; const bad = [], big = [];
+  for (let i = 0; i < files.length; i++){
+    const f = files[i];
+    if (tooBig(f)){ big.push(f.name); continue; }
+    E.impProg.textContent = `Adding ${i + 1} of ${files.length}`;
+    try {
+      const type = typeOf(f);
+      const blob = f.type === type ? f : new Blob([f], { type });
+      const duration = await probe(blob);
+      const meta = { id: uid(), title: cleanName(f.name), collection: col, duration, size: f.size, type, added: Date.now() };
+      await store.put(meta, { blob });
+      tracks.push(meta); ok++;
+    } catch (e) {
+      if (isQuota(e)){ quota = true; bad.push(...files.slice(i).map(x => x.name)); break; }
+      if (e && e.code === 'too_large') big.push(f.name); else bad.push(f.name);
+    }
+  }
+  pending = []; setBusy(false); E.imp.close();
+  if (ok && col){ filter = col; ls.set('cap.filter', col); }
+  render(); updateNow(); updateStorage(); if (ok) requestPersist();
+  const parts = [`Added ${ok} track${ok === 1 ? '' : 's'}.`];
+  if (quota) parts.push(`Storage is full; ${bad.length} didn't fit.`);
+  else if (bad.length) parts.push(`Couldn't open ${bad.length}${bad.length <= 2 ? ': ' + bad.join(', ') : ''}. MP3, M4A and MP4 work best.`);
+  if (big.length) parts.push(`${big.length} too big to add whole; add ${big.length === 1 ? 'it' : 'each'} on its own to cut songs out.`);
+  toast(ok ? parts.join(' ') : parts.slice(1).join(' '));
+});
+
+// ---------- edit ----------
+let editId = null, delArmed = false;
+function disarm(){ delArmed = false; E.edDel.textContent = 'Delete track'; }
+function openEdit(id){
+  const t = tracks.find(x => x.id === id); if (!t) return;
+  editId = id; E.edTitle.value = t.title; E.edCol.value = coll(t); disarm(); E.ed.showModal();
+}
+E.edCancel.addEventListener('click', () => E.ed.close());
+E.edSave.addEventListener('click', async () => {
+  const t = tracks.find(x => x.id === editId); if (!t){ E.ed.close(); return; }
+  t.title = E.edTitle.value.trim() || t.title; t.collection = E.edCol.value.trim();
+  try { await store.put(t); } catch (e) { toast("Couldn't save changes. Check your connection."); }
+  E.ed.close(); render(); if (t.id === currentId){ updateNow(); setMeta(t); }
+});
+E.edDel.addEventListener('click', async () => {
+  if (!delArmed){ delArmed = true; E.edDel.textContent = 'Tap again to delete'; return; }
+  const t = tracks.find(x => x.id === editId); if (!t){ E.ed.close(); return; }
+  try { await store.remove(t); } catch (e) { E.ed.close(); toast("Couldn't delete that track. Check your connection."); return; }
+  tracks = tracks.filter(x => x.id !== t.id);
+  const p = queue.indexOf(t.id); if (p > -1){ queue.splice(p, 1); if (p < qi) qi--; }
+  if (t.id === currentId) stopCurrent();
+  E.ed.close(); render(); updateNow(); updateStorage(); toast('Track deleted.');
+});
+
+// ---------- cut songs ----------
+// MP3: copies whole MP3 frames between the start and end (fast, no re-encoding).
+// Anything else: plays the section silently into a recorder in real time.
+function parseMp3(buf){
+  const b = new Uint8Array(buf); let p = 0;
+  if (b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33){
+    p = 10 + ((b[6] & 127) << 21 | (b[7] & 127) << 14 | (b[8] & 127) << 7 | (b[9] & 127)) + ((b[5] & 0x10) ? 10 : 0);
+  }
+  const BR1 = [0,32,40,48,56,64,80,96,112,128,160,192,224,256,320], BR2 = [0,8,16,24,32,40,48,56,64,80,96,112,128,144,160];
+  const SR = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+  const frames = []; let t = 0, xing = null, spf = 1152, sr = 44100;
+  while (p + 4 <= b.length){
+    if (b[p] !== 0xFF || (b[p + 1] & 0xE0) !== 0xE0){ p++; continue; }
+    const ver = (b[p + 1] >> 3) & 3, layer = (b[p + 1] >> 1) & 3, bri = b[p + 2] >> 4, sri = (b[p + 2] >> 2) & 3, pad = (b[p + 2] >> 1) & 1, mono = (b[p + 3] >> 6) === 3;
+    if (ver === 1 || layer !== 1 || bri === 0 || bri === 15 || sri === 3){ p++; continue; }
+    sr = SR[ver][sri]; spf = ver === 3 ? 1152 : 576;
+    const len = Math.floor((ver === 3 ? 144 : 72) * (ver === 3 ? BR1 : BR2)[bri] * 1000 / sr) + pad;
+    if (p + len > b.length) break;
+    if (!frames.length){
+      const q = p + len;
+      if (q + 1 < b.length && !(b[q] === 0xFF && (b[q + 1] & 0xE0) === 0xE0)){ p++; continue; }
+      if (!xing){
+        const off = 4 + (ver === 3 ? (mono ? 17 : 32) : (mono ? 9 : 17));
+        const tag = String.fromCharCode(b[p + off], b[p + off + 1], b[p + off + 2], b[p + off + 3]);
+        if (tag === 'Xing' || tag === 'Info'){ xing = { pos: p, len, off }; p += len; continue; }
+      }
+    }
+    frames.push({ pos: p, len, t }); t += spf / sr; p += len;
+  }
+  return frames.length > 20 ? { b, frames, xing, dur: t, fd: spf / sr } : null;
+}
+function cutMp3(P, s, e){
+  const fr = P.frames;
+  let i = fr.findIndex(f => f.t + P.fd / 2 >= s); if (i < 0) i = fr.length - 1;
+  let j = i; while (j < fr.length && fr[j].t + P.fd / 2 < e) j++;
+  if (j <= i) j = i + 1;
+  const start = fr[i].pos, end = fr[j - 1].pos + fr[j - 1].len, n = j - i;
+  const parts = [];
+  if (P.xing){
+    // Rewrite the VBR header so players report the clip's own length
+    const h = P.b.slice(P.xing.pos, P.xing.pos + P.xing.len), dv = new DataView(h.buffer);
+    let q = P.xing.off + 4; const flags = dv.getUint32(q); q += 4;
+    if (flags & 1){ dv.setUint32(q, n); q += 4; }
+    if (flags & 2){ dv.setUint32(q, end - start + h.length); q += 4; }
+    if (flags & 4){ for (let k = 0; k < 100; k++) h[q + k] = Math.min(255, Math.round(k * 256 / 100)); }
+    parts.push(h);
+  }
+  parts.push(P.b.subarray(start, end));
+  return { blob: new Blob(parts, { type: 'audio/mpeg' }), dur: n * P.fd };
+}
+const cut = { file: null, url: null, el: null, mp3: null, clips: [], ctx: null, recEl: null, dest: null, busy: false, previewEnd: null };
+function cMsg(t){ E.cProg.textContent = t; }
+function cDur(){ return cut.el && isFinite(cut.el.duration) ? cut.el.duration : 0; }
+function cTime(){
+  const d = cDur(), c = cut.el ? cut.el.currentTime || 0 : 0;
+  E.cTCur.textContent = fmt(c); E.cTDur.textContent = fmt(d);
+  if (!cut.scrub) E.cSeek.value = d ? Math.round(c / d * 1000) : 0;
+  E.cSeek.style.setProperty('--p', (E.cSeek.value / 10) + '%');
+  if (cut.previewEnd != null && c >= cut.previewEnd){ cut.el.pause(); cut.previewEnd = null; }
+}
+function cBtn(){ E.cPlay.textContent = cut.el && !cut.el.paused ? 'Pause' : 'Play'; }
+function releaseCutter(){
+  for (const el of [cut.el, cut.recEl]) if (el){ el.pause(); el.removeAttribute('src'); try { el.load(); } catch (e) {} }
+  if (cut.ctx){ try { cut.ctx.close(); } catch (e) {} }
+  if (cut.url) URL.revokeObjectURL(cut.url);
+  Object.assign(cut, { file: null, url: null, el: null, mp3: null, clips: [], ctx: null, recEl: null, dest: null, busy: false, previewEnd: null });
+}
+function openCutter(file, col){
+  audio.pause(); releaseCutter();
+  cut.file = file; cut.url = URL.createObjectURL(file);
+  const el = cut.el = new Audio(); el.preload = 'auto';
+  ['loadedmetadata', 'timeupdate', 'seeked'].forEach(ev => el.addEventListener(ev, cTime));
+  el.addEventListener('play', cBtn); el.addEventListener('pause', cBtn);
+  el.addEventListener('error', () => cMsg("This file can't be played in this browser."));
+  el.src = cut.url;
+  E.cFile.textContent = `${file.name} (${fmtSize(file.size)})`;
+  E.cStart.value = fmtT(0); E.cEnd.value = ''; E.cName.value = ''; E.cCol.value = col || '';
+  cMsg(''); cutBusy(false); renderClips(); cBtn(); cTime();
+  E.cut.showModal();
+  if (/^audio\/(mpeg|mp3)$/i.test(file.type) || extOf(file.name) === 'mp3'){
+    file.arrayBuffer().then(buf => { if (cut.file !== file) return; cut.mp3 = parseMp3(buf); renderClips(); }).catch(() => {});
+  }
+}
+function renderClips(){
+  E.cList.replaceChildren(...cut.clips.map((c, i) => {
+    const li = document.createElement('li');
+    const tx = document.createElement('span'); tx.className = 'ct';
+    const nm = document.createElement('span'); nm.className = 'cn'; nm.textContent = c.name;
+    const mt = document.createElement('span'); mt.className = 'cm'; mt.textContent = `${fmtT(c.s)} to ${fmtT(c.e)} (${fmt(c.e - c.s)})`;
+    tx.append(nm, mt);
+    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'icon'; rm.disabled = cut.busy;
+    rm.setAttribute('aria-label', 'Remove ' + c.name); rm.innerHTML = ICON.x;
+    rm.addEventListener('click', () => { cut.clips.splice(i, 1); renderClips(); });
+    li.append(tx, rm); return li;
+  }));
+  E.cList.hidden = !cut.clips.length;
+  const total = cut.clips.reduce((a, c) => a + c.e - c.s, 0);
+  E.cHow.textContent = cut.mp3 ? 'MP3 clips are cut instantly with no quality loss.'
+    : window.MediaRecorder ? `Clips are saved by playing them silently in real time${total ? `, about ${fmt(total)} for this list` : ''}. Keep this screen open while it works.`
+    : "This browser can't record clips, so only MP3 files can be cut here.";
+  E.cSave.disabled = cut.busy || !cut.clips.length || (!cut.mp3 && !window.MediaRecorder);
+  E.cSave.textContent = cut.clips.length > 1 ? `Save ${cut.clips.length} clips` : 'Save clip';
+}
+function cutBusy(b){
+  cut.busy = b;
+  E.cut.querySelectorAll('input, button').forEach(x => { if (x !== E.cSave) x.disabled = b; });
+  renderClips();
+}
+E.cPlay.addEventListener('click', () => { if (!cut.el) return; cut.previewEnd = null; if (cut.el.paused) cut.el.play().catch(() => {}); else cut.el.pause(); });
+E.cBack.addEventListener('click', () => { if (cut.el) cut.el.currentTime = Math.max(0, cut.el.currentTime - 5); });
+E.cFwd.addEventListener('click', () => { if (cut.el) cut.el.currentTime = Math.min(cDur(), cut.el.currentTime + 5); });
+E.cSeek.addEventListener('input', () => { cut.scrub = true; E.cTCur.textContent = fmt(E.cSeek.value / 1000 * cDur()); E.cSeek.style.setProperty('--p', (E.cSeek.value / 10) + '%'); });
+E.cSeek.addEventListener('change', () => { if (cut.el && cDur()) cut.el.currentTime = E.cSeek.value / 1000 * cDur(); cut.scrub = false; cTime(); });
+E.cStartNow.addEventListener('click', () => { if (cut.el) E.cStart.value = fmtT(cut.el.currentTime); });
+E.cEndNow.addEventListener('click', () => { if (cut.el) E.cEnd.value = fmtT(cut.el.currentTime); });
+function readRange(){
+  const s = parseTime(E.cStart.value), e = parseTime(E.cEnd.value), d = cDur() || Infinity;
+  if (!isFinite(s)){ cMsg('Set a start time, like 1:05.'); return null; }
+  if (!isFinite(e)){ cMsg('Set an end time, like 4:30. "Now" uses the current position.'); return null; }
+  if (e - s < 1){ cMsg('The end has to be at least a second after the start.'); return null; }
+  if (s >= d){ cMsg(`The file is only ${fmt(d)} long.`); return null; }
+  return { s, e: Math.min(e, d) };
+}
+E.cPreview.addEventListener('click', () => {
+  const r = readRange(); if (!r || !cut.el) return;
+  cMsg(''); cut.el.currentTime = r.s; cut.previewEnd = r.e; cut.el.play().catch(() => {});
+});
+E.cAdd.addEventListener('click', () => {
+  const r = readRange(); if (!r) return;
+  const name = E.cName.value.trim() || `${cleanName(cut.file.name)} part ${cut.clips.length + 1}`;
+  cut.clips.push({ s: r.s, e: r.e, name, col: E.cCol.value.trim() });
+  E.cName.value = ''; E.cStart.value = fmtT(r.e); E.cEnd.value = '';
+  cMsg(`Added "${name}". Set the next one, or save.`); renderClips();
+});
+E.cut.addEventListener('cancel', e => { if (cut.busy) e.preventDefault(); });
+E.cut.addEventListener('close', () => { if (!cut.busy) releaseCutter(); });
+E.cCancel.addEventListener('click', () => E.cut.close());
+function pickRecMime(){
+  for (const m of ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']){
+    try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) {}
+  }
+  return '';
+}
+// Runs inside the Save tap so the browser allows the silent playback used for recording
+function setupRecorder(){
+  if (!window.MediaRecorder) return false;
+  try {
+    if (!cut.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      cut.ctx = new AC();
+      cut.recEl = new Audio(); cut.recEl.preload = 'auto'; cut.recEl.src = cut.url;
+      const src = cut.ctx.createMediaElementSource(cut.recEl);
+      cut.dest = cut.ctx.createMediaStreamDestination();
+      src.connect(cut.dest);
+    }
+    cut.ctx.resume().catch(() => {});
+    const p = cut.recEl.play(); if (p) p.then(() => cut.recEl.pause()).catch(() => {});
+    return true;
+  } catch (e) { return false; }
+}
+const waitEvent = (el, ev, ms) => new Promise(res => { const t = setTimeout(fin, ms); function fin(){ clearTimeout(t); el.removeEventListener(ev, fin); res(); } el.addEventListener(ev, fin); });
+async function recordClip(s, e, onProgress){
+  const el = cut.recEl;
+  if (el.readyState < 1) await waitEvent(el, 'loadedmetadata', 8000);
+  el.pause();
+  if (Math.abs(el.currentTime - s) > 0.05){ const w = waitEvent(el, 'seeked', 8000); el.currentTime = s; await w; }
+  const mime = pickRecMime(); const opts = { audioBitsPerSecond: 160000 }; if (mime) opts.mimeType = mime;
+  const rec = new MediaRecorder(cut.dest.stream, opts); const chunks = [];
+  rec.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+  const stopped = new Promise((res, rej) => { rec.onstop = res; rec.onerror = ev => rej(ev.error || new Error('record')); });
+  await cut.ctx.resume().catch(() => {});
+  rec.start(1000);
+  try { await el.play(); } catch (err){ rec.stop(); throw err; }
+  await new Promise(res => {
+    const tick = () => {
+      if (el.currentTime >= e || el.ended || (el.paused && el.currentTime > s + 0.5)) res();
+      else { onProgress(el.currentTime - s); setTimeout(tick, 40); }
+    };
+    tick();
+  });
+  el.pause(); rec.stop(); await stopped;
+  return new Blob(chunks, { type: (rec.mimeType || mime || 'audio/webm').split(';')[0] });
+}
+E.cSave.addEventListener('click', () => {
+  if (!cut.clips.length || cut.busy) return;
+  if (!cut.mp3 && !setupRecorder()){ cMsg("This browser can't record clips."); return; }
+  if (cut.el) cut.el.pause();
+  saveClips();
+});
+async function saveClips(){
+  cutBusy(true);
+  const list = cut.clips.slice(), n = list.length; let ok = 0, quota = false; const bad = [];
+  for (let k = 0; k < n; k++){
+    const c = list[k];
+    try {
+      let blob, dur;
+      if (cut.mp3){ const r = cutMp3(cut.mp3, c.s, c.e); blob = r.blob; dur = r.dur; }
+      else {
+        blob = await recordClip(c.s, c.e, t => cMsg(`Recording ${k + 1} of ${n}: ${fmt(t)} of ${fmt(c.e - c.s)}`));
+        dur = c.e - c.s;
+        if (!blob.size) throw new Error('empty');
+      }
+      cMsg(`Saving ${k + 1} of ${n}`);
+      if (blob.size > limitFor(blob.type)) throw { code: 'too_large' };
+      const meta = { id: uid(), title: c.name, collection: c.col, duration: dur, size: blob.size, type: blob.type, added: Date.now() };
+      await store.put(meta, { blob });
+      tracks.push(meta); ok++;
+    } catch (e) {
+      bad.push(c.name);
+      if (isQuota(e)){ quota = true; break; }
+    }
+  }
+  const col = list.length ? list[list.length - 1].col : '';
+  cut.busy = false; E.cut.close();
+  if (ok && col){ filter = col; ls.set('cap.filter', col); }
+  render(); updateNow(); updateStorage(); if (ok) requestPersist();
+  toast(quota ? `Saved ${ok}. Storage is full, so the rest didn't fit.`
+    : bad.length ? `Saved ${ok} of ${n}. Couldn't save: ${bad.slice(0, 2).join(', ')}${bad.length > 2 ? '…' : ''}`
+    : `Saved ${ok} clip${ok === 1 ? '' : 's'} to your library.`);
+}
+
+
+// ---------- backup and restore (this-device storage) ----------
+// File layout: "CLIPPLAY1 <header bytes>\n", a JSON header listing each track's offset and length, then the audio back to back.
+const BK_PART = 500 * 1024 * 1024;
+const enc = new TextEncoder(), dec = new TextDecoder();
+function backupFile(items, i, n){
+  let off = 0;
+  const list = items.map(({ meta, blob }) => {
+    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, offset: off, length: blob.size };
+    off += blob.size; return h;
+  });
+  const head = enc.encode(JSON.stringify({ app: 'clip-and-play', version: 1, part: i + 1, parts: n, created: new Date().toISOString(), tracks: list }));
+  const date = new Date().toISOString().slice(0, 10);
+  const name = n > 1 ? `clip-and-play-backup-${date}-part-${i + 1}-of-${n}.clipplay` : `clip-and-play-backup-${date}.clipplay`;
+  return new File([enc.encode(`CLIPPLAY1 ${head.length}\n`), head, ...items.map(x => x.blob)], name, { type: 'application/octet-stream' });
+}
+async function saveFile(file){
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })){ await navigator.share({ files: [file] }); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return false; }
+  const u = URL.createObjectURL(file); const a = document.createElement('a');
+  a.href = u; a.download = file.name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 120000);
+  return true;
+}
+E.bkBtn.addEventListener('click', async () => {
+  E.bkParts.replaceChildren(); E.bkProg.textContent = 'Preparing your backup';
+  E.bk.showModal();
+  const groups = []; let cur = [], size = 0, missing = 0;
+  for (const meta of sorted()){
+    let blob = null; try { blob = await local.blob(meta); } catch (e) {}
+    if (!blob){ missing++; continue; }
+    if (cur.length && size + blob.size > BK_PART){ groups.push(cur); cur = []; size = 0; }
+    cur.push({ meta, blob }); size += blob.size;
+  }
+  if (cur.length) groups.push(cur);
+  if (!groups.length){ E.bkProg.textContent = "There's nothing to back up yet."; return; }
+  const files = groups.map((g, i) => backupFile(g, i, groups.length));
+  E.bkProg.textContent = (files.length > 1 ? `Your library is split into ${files.length} files. Save each one.` : 'Your backup is ready.') +
+    (missing ? ` ${missing} track${missing === 1 ? " couldn't" : "s couldn't"} be read and ${missing === 1 ? 'was' : 'were'} skipped.` : '');
+  E.bkParts.replaceChildren(...files.map((f, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-primary';
+    const label = files.length > 1 ? `Save file ${i + 1} of ${files.length} (${fmtSize(f.size)})` : `Save backup (${fmtSize(f.size)})`;
+    b.textContent = label;
+    b.addEventListener('click', async () => { if (await saveFile(f)){ b.textContent = label.replace('Save', 'Saved'); b.className = 'btn btn-quiet'; } });
+    return b;
+  }));
+});
+E.bkClose.addEventListener('click', () => E.bk.close());
+async function readBackup(file){
+  const first = dec.decode(await file.slice(0, 64).arrayBuffer());
+  const m = /^CLIPPLAY1 (\d+)\n/.exec(first); if (!m) throw new Error('not a backup');
+  const start = m[0].length, len = +m[1];
+  const h = JSON.parse(dec.decode(await file.slice(start, start + len).arrayBuffer()));
+  if (h.app !== 'clip-and-play' || !Array.isArray(h.tracks)) throw new Error('not a backup');
+  const base = start + len;
+  return h.tracks.filter(t => t && typeof t.id === 'string' && /^[\w-]{1,64}$/.test(t.id) && t.length > 0).map(t => ({
+    meta: { id: t.id, title: String(t.title || 'Untitled').slice(0, 300), collection: String(t.collection || '').slice(0, 100),
+      duration: +t.duration || 0, size: t.length, type: String(t.type || 'audio/mpeg'), added: +t.added || Date.now() },
+    blob: file.slice(base + t.offset, base + t.offset + t.length, String(t.type || 'audio/mpeg'))
+  }));
+}
+const pickRestore = () => { if (loaded) E.restoreFile.click(); };
+E.rsBtn.addEventListener('click', pickRestore);
+E.emptyRestore.addEventListener('click', pickRestore);
+E.restoreFile.addEventListener('change', async () => {
+  const files = [...E.restoreFile.files]; E.restoreFile.value = '';
+  if (!files.length) return;
+  let added = 0, skipped = 0, bad = 0, quota = false;
+  const have = new Set(tracks.map(t => t.id));
+  outer: for (const f of files){
+    let items;
+    try { items = await readBackup(f); } catch (e) { bad++; continue; }
+    for (const it of items){
+      if (have.has(it.meta.id)){ skipped++; continue; }
+      toast(`Restoring ${added + 1} of ${items.length}`);
+      try { await store.put(it.meta, { blob: it.blob }); tracks.push(it.meta); have.add(it.meta.id); added++; }
+      catch (e) { if (isQuota(e)){ quota = true; break outer; } }
+    }
+  }
+  render(); updateNow(); updateStorage(); if (added) requestPersist();
+  const parts = [];
+  if (added) parts.push(`Restored ${added} track${added === 1 ? '' : 's'}.`);
+  if (skipped) parts.push(`${skipped} already in your library.`);
+  if (bad) parts.push(`${bad === 1 ? "That file isn't" : `${bad} files aren't`} a Clip & Play backup.`);
+  if (quota) parts.push('Storage is full, so the rest was not restored.');
+  toast(parts.join(' ') || 'Nothing to restore.');
+});
+
+// Works offline after the first visit
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+
+// ---------- start ----------
+(async function init(){
+  render(); applyToggles(); updateNow();
+  await initStorage();
+  try { tracks = await store.all(); } catch (e) { tracks = []; loadFailed = true; }
+  loaded = true;
+  render(); updateNow(); updateStorage();
+  const last = ls.get('cap.last', null);
+  if (last && tracks.some(t => t.id === last.id)){ buildQueue(last.id); load(last.id, { autoplay: false, at: last.t || 0 }); }
+})();
+})();
+</script>
+</body>
+</html>
