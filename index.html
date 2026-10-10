@@ -226,6 +226,8 @@ dialog:focus-visible{outline:none}
 .ly-callout{margin-top:12px!important;padding:12px 14px;border-radius:var(--r-s);background:var(--accent-soft);color:var(--ink)!important}
 .steps{margin:12px 0 0;padding-left:22px;color:var(--muted)}
 .steps li{margin:6px 0}
+.ll.qk{cursor:pointer}
+.ll.qmarked{color:var(--ly-ink,var(--ink))}
 .toast{position:fixed;left:var(--gut);right:var(--gut);bottom:calc(24px + env(safe-area-inset-bottom,0px));margin:0 auto;max-width:480px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:var(--r-m);font-size:15px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;z-index:20}
 body.has-bar .toast{bottom:calc(var(--bar-h) + env(safe-area-inset-bottom,0px) + 12px)}
 .toast.show{opacity:1;transform:none}
@@ -288,7 +290,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.12</p>
+      <p class="ver">Clip &amp; Play v1.2.14</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -321,6 +323,13 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
   <div class="lyp-sync" id="lyAuto" hidden>
     <p id="lyAutoInfo" aria-live="polite"></p>
     <div class="actions"><button type="button" class="btn btn-quiet" id="lyAutoCancel">Stop auto-sync</button></div>
+  </div>
+  <div class="lyp-sync" id="lyQuick" hidden>
+    <p id="lyQuickInfo"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-quiet" id="lyQuickCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="lyQuickDone">Done</button>
+    </div>
   </div>
 </section>
 
@@ -524,7 +533,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
       <li>Choose Save as a .lrc file, and move that file to your phone, for example with AirDrop, email or iCloud Drive.</li>
       <li>On your phone, open this song's lyrics and choose Import a .lrc file.</li>
     </ol>
-    <p class="hint">Or use <strong>Rough sync from the sound</strong> right here. It's quick and needs no AI, but its timing is an estimate, so expect to fix some lines.</p>
+    <p class="hint">Or use <strong>Quick sync</strong> right here: tap a few lines as you hear them start, and the app fills in the rest. No AI needed.</p>
     <div class="actions"><button type="button" class="btn btn-primary" id="lyPcClose">Got it</button></div>
   </div>
 </dialog>
@@ -896,9 +905,21 @@ async function prefetchNext(){
   releasePre();
   const m = id && id !== currentId && tracks.find(t => t.id === id); if (!m) return;
   let src = null;
-  try { src = await store.source(m); } catch (e) { plogAdd('getting next song ready failed: ' + (e && e.message)); return; }
+  try { src = await memorySource(m); } catch (e) { plogAdd('getting next song ready failed: ' + (e && e.message)); return; }
   if (peekNextId() !== id || nextPre){ if (src.own) URL.revokeObjectURL(src.url); return; }
-  nextPre = Object.assign({ id }, src); plogAdd(`next song ready: "${m.title.slice(0, 24)}"`);
+  nextPre = Object.assign({ id }, src); plogAdd(`next song ready: "${m.title.slice(0, 24)}" (${fmtSize(src.bytes || 0)} in memory)`);
+}
+// Read the next song's audio into memory now, while the app is active. A stored file is otherwise only read
+// when it starts playing, and a phone in the background may not allow that read until the app is reopened.
+async function memorySource(m){
+  let blob = null;
+  if (mode === 'local' && typeof local.blob === 'function') blob = await local.blob(m);
+  if (!blob){
+    const src = await store.source(m);
+    try { blob = await (await fetch(src.url)).blob(); } finally { if (src.own) URL.revokeObjectURL(src.url); }
+  }
+  const buf = await blob.arrayBuffer();
+  return { url: URL.createObjectURL(new Blob([buf], { type: blob.type || m.type })), own: true, bytes: buf.byteLength };
 }
 function applySource(m, src, autoplay, at){
   if (currentUrl) URL.revokeObjectURL(currentUrl);
@@ -979,7 +1000,7 @@ audio.addEventListener('timeupdate', () => {
 ['play', 'pause', 'seeked', 'ratechange', 'loadedmetadata'].forEach(ev => audio.addEventListener(ev, mediaPos));
 audio.addEventListener('ended', () => {
   plogAdd(`song ended after ${fmt(audio.duration || 0)}`);
-  if (sync){ audio.pause(); return; } // syncing lyrics: stay on this song
+  if (sync || quick){ audio.pause(); return; } // syncing lyrics: stay on this song
   if (sleep && sleep.mode === 'track'){ sleep = null; updateSleep(); audio.currentTime = 0; updateNow(); toast('Sleep timer stopped playback.'); return; }
   if (repeat === 'one'){ audio.currentTime = 0; audio.play().catch(() => {}); }
   else step(1, true);
@@ -1623,7 +1644,7 @@ const LY = { panel:$('#lyp'), body:$('#lyBody'), title:$('#lyTitle'), sub:$('#ly
   asDlg:$('#lyAsDlg'), asGo:$('#lyAsGo'), asCancel:$('#lyAsCancel') };
 const LY_MAX_LINES = 500, LY_MAX_CHARS = 300;
 const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-let lyOpenFlag = false, lyEls = [], lyIdx = -1, lyUserScroll = 0, lyRAF = 0, sync = null, lyRemoveArmed = false, fix = null, auto = null;
+let lyOpenFlag = false, lyEls = [], lyIdx = -1, lyUserScroll = 0, lyRAF = 0, sync = null, lyRemoveArmed = false, fix = null, auto = null, quick = null;
 const toSec = (m, s) => (+m) * 60 + parseFloat(String(s).replace(':', '.'));
 const STAMP = /^\[(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)\]/;
 const WSTAMP = /<(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)>/g;
@@ -1688,7 +1709,7 @@ function renderLyrics(){
   const m = cur(); lyIdx = -1; lyEls = [];
   LY.title.textContent = m ? m.title : ''; LY.sub.textContent = m ? coll(m) : '';
   const autoHere = !!(auto && m && auto.trackId === m.id);
-  LY.menu.hidden = !m || !!sync || autoHere; LY.sync.hidden = !sync; LY.fix.hidden = !fix; LY.auto.hidden = !autoHere;
+  LY.menu.hidden = !m || !!sync || autoHere || !!quick; LY.sync.hidden = !sync; LY.fix.hidden = !fix; LY.auto.hidden = !autoHere; QK.bar.hidden = !quick;
   applyLyStyle(m);
   LY.body.replaceChildren();
   if (!m) return;
@@ -1699,8 +1720,8 @@ function renderLyrics(){
     box.append(p, lyButton('Paste lyrics', 'btn-primary', openLyEditor), lyButton('Import a .lrc file', 'btn-quiet', () => LY.file.click()));
     LY.body.append(box); return;
   }
-  const timed = !sync && isTimed(L);
-  if (!timed && !sync && !autoHere){ // hidden during auto-sync so the two kinds of syncing aren't mixed up
+  const timed = !sync && !quick && isTimed(L);
+  if (!timed && !sync && !autoHere && !quick){ // hidden during auto-sync so the two kinds of syncing aren't mixed up
     const n = document.createElement('p'); n.className = 'ly-note'; n.textContent = "These lyrics aren't timed yet. Sync them by tapping along once while the song plays.";
     const b = lyButton('Sync lyrics', 'btn-primary ly-sync-start', startSync);
     LY.body.append(n, b);
@@ -1713,19 +1734,24 @@ function renderLyrics(){
     else if (timed){ toks.forEach((w, k) => { if (k && sep) li.append(sep); const s = document.createElement('span'); s.className = 'w'; s.textContent = w; li.append(s); }); }
     else li.textContent = line.x;
     if (timed && line.e) li.classList.add('est');
+    if (quick){
+      li.classList.add('qk');
+      if (quick.marks.has(i)){ const chip = document.createElement('span'); chip.className = 'lt'; chip.textContent = '\u2713 ' + fmtT(quick.marks.get(i)); li.prepend(chip); li.classList.add('qmarked'); }
+      li.addEventListener('click', () => quickMark(i));
+    }
     if (timed && fix){ const chip = document.createElement('span'); chip.className = 'lt'; chip.textContent = fmtT(line.t) + (line.e ? ' \u00b7 estimated' : ''); li.prepend(chip); if (fix.idx === i) li.classList.add('lsel'); }
     if (timed) li.addEventListener('click', () => { if (fix){ pickFixLine(i); return; } audio.currentTime = line.t; if (audio.paused) audio.play().catch(() => {}); lyIdx = -1; lyUserScroll = 0; kickLyrics(); });
     ol.append(li); lyEls.push(li);
   });
   LY.body.append(ol);
-  if (sync) updateSyncUI(); else { kickLyrics(); if (fix) updateFixUI(); if (autoHere) updateAutoUI(); }
+  if (sync) updateSyncUI(); else { kickLyrics(); if (fix) updateFixUI(); if (autoHere) updateAutoUI(); if (quick) updateQuickUI(); }
 }
 function scrollLyricTo(el){
   if (!el) return;
   LY.body.scrollTo({ top: Math.max(0, el.offsetTop - LY.body.clientHeight * 0.35), behavior: reduceMotion() ? 'auto' : 'smooth' });
 }
 function lyFrame(){
-  if (!lyOpenFlag || sync || document.visibilityState === 'hidden') return;
+  if (!lyOpenFlag || sync || quick || document.visibilityState === 'hidden') return;
   const L = curLyrics(); if (!isTimed(L) || lyEls.length !== L.lines.length) return;
   const lines = L.lines, t = audio.currentTime || 0;
   let i = lyIdx;
@@ -1767,11 +1793,11 @@ function openLyrics(){
 }
 function closeLyrics(){
   if (!lyOpenFlag) return;
-  sync = null; fix = null; lyOpenFlag = false; LY.panel.classList.remove('open');
+  sync = null; fix = null; quick = null; lyOpenFlag = false; LY.panel.classList.remove('open');
   LY.btn.setAttribute('aria-expanded', 'false'); LY.btn.setAttribute('aria-pressed', 'false');
   setTimeout(() => { if (!lyOpenFlag) LY.panel.hidden = true; }, reduceMotion() ? 0 : 260);
 }
-function lyTrackChanged(m){ if (sync && sync.trackId !== m.id) sync = null; if (fix && fix.trackId !== m.id) fix = null; if (lyOpenFlag) renderLyrics(); }
+function lyTrackChanged(m){ if (sync && sync.trackId !== m.id) sync = null; if (fix && fix.trackId !== m.id) fix = null; if (quick && quick.trackId !== m.id) quick = null; if (lyOpenFlag) renderLyrics(); }
 window.addEventListener('resize', () => { if (lyOpenFlag) placeLyrics(); });
 LY.btn.addEventListener('click', () => lyOpenFlag ? closeLyrics() : openLyrics());
 LY.grab.addEventListener('click', openLyrics);
@@ -1839,7 +1865,7 @@ function openLyOptions(){
   const phone = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
   if (L && autoSyncAvailable() && !phone) opts.push(lyButton('Auto-sync with AI (beta)', 'btn-quiet', () => { LY.dlg.close(); LY.asDlg.showModal(); }));
   if (L && autoSyncAvailable() && phone) opts.push(lyButton('Auto-sync with AI (needs a computer)', 'btn-quiet', () => { LY.dlg.close(); PC.dlg.showModal(); }));
-  if (L) opts.push(lyButton('Rough sync from the sound (no AI)', 'btn-quiet', () => { LY.dlg.close(); runRoughSync(); }));
+  if (L) opts.push(lyButton('Quick sync (tap only some lines)', 'btn-quiet', () => { LY.dlg.close(); startQuick(); }));
   if (timed) opts.push(lyButton("Fix a line's timing", 'btn-quiet', () => { LY.dlg.close(); startFix(); }));
   opts.push(lyButton(`Style: ${LY_STYLES[styleOf(cur())].name}`, 'btn-quiet', () => { LY.dlg.close(); openStylePicker(); }));
   opts.push(lyButton(L ? 'Edit lyrics' : 'Paste lyrics', 'btn-quiet', openLyEditor));
@@ -2193,7 +2219,7 @@ LG.copy.addEventListener('click', async () => {
 });
 
 
-// ---------- rough sync: no AI, just the sound ----------
+// ---------- singing detection (used by quick sync): no AI, just the sound ----------
 // Finds stretches where something voice-like is happening (energy in the main vocal range, compared to the
 // whole mix), then spreads the lines across those stretches by word count, snapping each line to the start of
 // a nearby stretch, since lines usually begin after a breath. Light enough for any phone. Every line is marked
@@ -2256,56 +2282,111 @@ async function vocalStretches(pcm){
   for (const g of segs){ const last = merged[merged.length - 1]; if (last && g.s - last.e < 0.6) last.e = g.e; else merged.push({ ...g }); }
   return merged.filter(g => g.e - g.s >= 0.5);
 }
-function roughPlace(lines, segs, dur){
-  const W = lines.map(l => Math.max(1, tokensOf({ x: l.x }).toks.length)), total = W.reduce((a, b) => a + b, 0);
-  if (!segs.length) segs = [{ s: Math.min(2, dur * 0.05), e: dur }];
-  const V = segs.reduce((a, g) => a + (g.e - g.s), 0);
-  const toReal = v => { for (const g of segs){ const d = g.e - g.s; if (v <= d) return g.s + v; v -= d; } return segs[segs.length - 1].e; };
-  // First guess for each line: spread by word count across the singing time
+// Place a run of lines inside one stretch of time [t0, t1]: a first guess spreads them by word count over the
+// singing in that stretch, then they're matched to phrase starts in order (each phrase used once), so one miss
+// doesn't shift every later line. A line may keep its first guess, at a cost, when no phrase start fits.
+// fixFirst: the first line is already known to start at t0 (a tapped line).
+function fitRange(W, segs, t0, t1, fixFirst){
+  const n = W.length; if (!n) return [];
+  let S = segs.filter(g => g.e > t0 && g.s < t1).map(g => ({ s: Math.max(g.s, t0), e: Math.min(g.e, t1) })).filter(g => g.e - g.s > 0.1);
+  if (!S.length) S = [{ s: t0, e: t1 }];
+  const total = W.reduce((x, y) => x + y, 0), V = S.reduce((x, g) => x + (g.e - g.s), 0);
+  const toReal = v => { for (const g of S){ const d = g.e - g.s; if (v <= d) return g.s + v; v -= d; } return S[S.length - 1].e; };
   let acc = 0; const est = W.map(w => { const t = toReal(V * acc / total); acc += w; return t; });
-  // Then match lines to phrase starts in order (each phrase used once), so one miss doesn't shift every later
-  // line. A line may stay on its first guess, at a cost, when no phrase start fits it.
-  const P = segs.map(g => g.s), nL = lines.length, nP = P.length, SKIP = 4;
-  const INF = 1e18, dp = [], from = [];
+  if (fixFirst) est[0] = t0;
+  const first = fixFirst ? 1 : 0, P = S.map(g => g.s).filter(p => !fixFirst || p > t0 + 0.3);
+  const nL = n - first, nP = P.length, SKIP = 4, INF = 1e18, dp = [], from = [];
   for (let i = 0; i <= nL; i++){ dp.push(new Float64Array(nP + 1).fill(INF)); from.push(new Int32Array(nP + 1).fill(-1)); }
   for (let j = 0; j <= nP; j++) dp[0][j] = 0;
   for (let i = 1; i <= nL; i++){
     for (let j = 0; j <= nP; j++){
-      // line i stays on its guess; phrases used so far stay at j
       if (dp[i - 1][j] + SKIP < dp[i][j]){ dp[i][j] = dp[i - 1][j] + SKIP; from[i][j] = -2; }
-      // line i takes phrase j (1-based), coming from any earlier phrase count k < j
       if (j >= 1){
         let bestK = -1, bestV = INF;
         for (let k = 0; k < j; k++) if (dp[i - 1][k] < bestV){ bestV = dp[i - 1][k]; bestK = k; }
-        const v = bestV + Math.abs(P[j - 1] - est[i - 1]);
+        const v = bestV + Math.abs(P[j - 1] - est[first + i - 1]);
         if (v < dp[i][j]){ dp[i][j] = v; from[i][j] = bestK; }
       }
     }
   }
+  const t = est.slice();
   let j = 0; for (let k = 1; k <= nP; k++) if (dp[nL][k] < dp[nL][j]) j = k;
-  const t = new Array(nL);
-  for (let i = nL; i >= 1; i--){
-    const f = from[i][j];
-    if (f === -2){ t[i - 1] = est[i - 1]; } else { t[i - 1] = P[j - 1]; j = f; }
+  for (let i = nL; i >= 1; i--){ const f = from[i][j]; if (f === -2) t[first + i - 1] = est[first + i - 1]; else { t[first + i - 1] = P[j - 1]; j = f; } }
+  return t;
+}
+
+
+// ---------- quick sync: tap only some lines, the rest are filled in between ----------
+const QK = { bar: $('#lyQuick'), info: $('#lyQuickInfo'), cancel: $('#lyQuickCancel'), done: $('#lyQuickDone') };
+function startQuick(){
+  const m = cur(), L = curLyrics(); if (!m || !L) return;
+  quick = { trackId: m.id, marks: new Map(), base: isTimed(L) ? L.lines.map(l => l.t) : null };
+  // With no earlier timing, work out where the singing is (as rough sync does) while you tap, so the lines
+  // between your taps follow the singing instead of being spread evenly
+  {
+    const q = quick;
+    q.segsPromise = (async () => vocalStretches(await to16k(await songBlob(m))))().catch(() => null);
   }
-  let prev = -1;
-  return lines.map((l, i) => { const v = Math.max(t[i], prev + 0.4); prev = v; return { t: Math.round(v * 100) / 100, x: l.x, e: 1 }; });
+  renderLyrics();
+  audio.currentTime = 0; audio.play().catch(e => playErr(e, m));
 }
-async function runRoughSync(){
-  const m = cur(), L = curLyrics(); if (!m || !L || auto) return;
-  auto = { trackId: m.id, stage: 'Analyzing the sound', t0: Date.now(), id: ++asSeq, rough: true };
-  auto.timer = setInterval(updateAutoUI, 1000); renderLyrics(); updateAutoUI();
-  plogAdd('rough sync started');
-  try {
-    const pcm = await to16k(await songBlob(m));
-    if (!auto || auto.trackId !== m.id) return;
-    const segs = await vocalStretches(pcm);
-    const lines = roughPlace(L.lines, segs, pcm.length / 16000);
-    endAuto();
-    await saveLyrics(m, { lines });
-    toast(`Rough sync placed all ${lines.length} lines. The timing is an estimate, so use Fix a line's timing to correct any that are off.`);
-  } catch (e) { endAuto(); toast("Rough sync couldn't read this song's audio."); }
+function updateQuickUI(){
+  if (!quick) return;
+  const n = quick.marks.size;
+  QK.info.textContent = n
+    ? `${n} line${n === 1 ? '' : 's'} tapped. Keep tapping lines as they start, or tap Done. Untapped lines are filled in between your taps.`
+    : "The song restarted. Tap a line the moment it starts. You don't need to tap every line: a few, like the start of each verse and chorus, is enough.";
+  QK.done.disabled = !n;
 }
+function quickMark(i){
+  if (!quick) return;
+  quick.marks.set(i, Math.round((audio.currentTime || 0) * 100) / 100);
+  renderLyrics();
+  if (lyEls[i]) scrollLyricTo(lyEls[i]);
+}
+function quickFill(lines, segs, base, marks, dur){
+  const n = lines.length, W = lines.map(l => Math.max(1, tokensOf({ x: l.x }).toks.length));
+  const anchors = [];
+  for (const [i, t] of [...marks.entries()].sort((a, b) => a[0] - b[0])){
+    if (!anchors.length || t > anchors[anchors.length - 1][1] + 0.2) anchors.push([i, t]); // ignore a tap out of order
+  }
+  const out = new Array(n).fill(null);
+  if (segs){
+    // Each gap between two tapped lines is placed on its own, so a mistake can't cross a tapped line
+    const [f, tf] = anchors[0];
+    if (f > 0){ const W0 = W.slice(0, f); const tt = fitRange(W0, segs, Math.max(0, tf - Math.max(4, W0.reduce((x, y) => x + y, 0) * 0.8)), tf, false); tt.forEach((v, i) => { out[i] = v; }); }
+    for (let k = 0; k < anchors.length; k++){
+      const [a, ta] = anchors[k], next = anchors[k + 1];
+      const b = next ? next[0] : n, tb = next ? next[1] : (dur || ta + (n - a) * 4);
+      const tt = fitRange(W.slice(a, b), segs, ta, tb, true); tt.forEach((v, i) => { out[a + i] = v; });
+    }
+  } else {
+    anchors.forEach(([i, t]) => { out[i] = t; });
+    for (let k = 0; k + 1 < anchors.length; k++){
+      const [a, ta] = anchors[k], [b, tb] = anchors[k + 1]; if (b - a < 2) continue;
+      if (base && base[b] > base[a]){ for (let i = a + 1; i < b; i++) out[i] = ta + (tb - ta) * (base[i] - base[a]) / (base[b] - base[a]); }
+      else { let tot = 0; for (let i = a; i < b; i++) tot += W[i]; let acc = 0; for (let i = a + 1; i < b; i++){ acc += W[i - 1]; out[i] = ta + (tb - ta) * acc / tot; } }
+    }
+    const [f, tf] = anchors[0];
+    for (let i = f - 1; i >= 0; i--) out[i] = base ? Math.max(0, tf - (base[f] - base[i])) : Math.max(0, out[i + 1] - Math.max(2, W[i] * 0.45));
+    const [l, tl] = anchors[anchors.length - 1];
+    for (let i = l + 1; i < n; i++){ out[i] = base ? tl + (base[i] - base[l]) : out[i - 1] + Math.max(2, W[i - 1] * 0.45); if (dur) out[i] = Math.min(out[i], Math.max(0, dur - 0.5)); }
+  }
+  anchors.forEach(([i, t]) => { out[i] = t; });
+  for (let i = 1; i < n; i++) if (out[i] < out[i - 1] + 0.05) out[i] = out[i - 1] + 0.05;
+  return lines.map((ln, i) => { const o = { t: Math.round(out[i] * 100) / 100, x: ln.x }; if (!marks.has(i)) o.e = 1; return o; });
+}
+QK.cancel.addEventListener('click', () => { quick = null; renderLyrics(); toast('Quick sync cancelled. Nothing was changed.'); });
+QK.done.addEventListener('click', async () => {
+  const m = cur(), L = curLyrics(); if (!quick || !m || !L || !quick.marks.size) return;
+  const q = quick; QK.done.disabled = true;
+  const segs = q.segsPromise ? await q.segsPromise : null;
+  if (quick !== q) return;
+  const lines = quickFill(L.lines, segs, q.base, q.marks, trackDur(m)), tapped = q.marks.size;
+  quick = null; audio.pause();
+  await saveLyrics(m, { lines });
+  toast(`Saved. ${tapped} line${tapped === 1 ? '' : 's'} timed by your taps, ${lines.length - tapped} filled in between. Use Fix a line's timing for any that are off.`);
+});
 
 // ---------- start ----------
 (async function init(){
