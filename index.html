@@ -290,7 +290,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.14</p>
+      <p class="ver">Clip &amp; Play v1.2.15</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -734,7 +734,27 @@ let shuffle = !!ls.get('cap.shuffle', false);
 let repeat = ls.get('cap.repeat', 'off');
 if (!['off', 'all', 'one'].includes(repeat)) repeat = 'off';
 let queue = [], qi = -1, currentId = null, currentUrl = null, scrubbing = false, loadToken = 0, pendingSeek = 0, lastSave = 0;
-const audio = new Audio(); audio.preload = 'auto';
+// Two players: the current song plays in one while the next song waits, already loaded, in the other. The next
+// one starts a moment before the current one ends, so the music never stops and nothing new has to load in the
+// gap between songs, which is when a phone in the background can stall.
+const players = [new Audio(), new Audio()]; players.forEach(p => { p.preload = 'auto'; });
+let audio = players[0], spare = players[1];
+// Listen on both players, but only react to the one that's currently playing
+function onAudio(ev, fn, opts){ players.forEach(p => p.addEventListener(ev, e => { if (e.target === audio) fn(e); }, opts)); }
+// A quarter second of silence, used once during a tap so the waiting player is allowed to start by itself later
+const SILENT_URL = (() => {
+  const n = 2000, b = new Uint8Array(44 + n), v = new DataView(b.buffer), w = (o, s) => { for (let i = 0; i < s.length; i++) b[o + i] = s.charCodeAt(i); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true); b.fill(128, 44);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+})();
+let spareUnlocked = false, priming = false, earlyDone = false;
+function primeSpare(){
+  if (spareUnlocked) return; spareUnlocked = true; priming = true;
+  const p0 = spare; p0.src = SILENT_URL;
+  const done = () => { priming = false; if (p0 !== spare) return; if (nextPre){ p0.src = nextPre.url; p0.load(); } else p0.removeAttribute('src'); };
+  const p = p0.play(); if (p) p.then(() => { p0.pause(); done(); }, () => { spareUnlocked = false; done(); }); else done();
+}
 const cur = () => tracks.find(t => t.id === currentId);
 
 // Tracks play in the order you arrange them (drag the handle). New tracks go to the end.
@@ -890,7 +910,13 @@ function playErr(e, m){
 // The next track is loaded while the current one plays, so switching at the end of a song needs no
 // storage or network wait. Phones can pause a background page's storage reads until it is reopened.
 let nextPre = null, nextQueue = null;
-function releasePre(){ if (nextPre && nextPre.own) URL.revokeObjectURL(nextPre.url); nextPre = null; }
+function releasePre(){
+  if (nextPre){
+    if (spare.src === nextPre.url){ spare.removeAttribute('src'); try { spare.load(); } catch (e) {} }
+    if (nextPre.own) URL.revokeObjectURL(nextPre.url);
+  }
+  nextPre = null;
+}
 function reshuffled(){ const last = queue[qi]; const q = shuffleArr(queue.slice()); if (q.length > 1 && q[0] === last) q.push(q.shift()); return q; }
 function peekNextId(){
   if (!queue.length) return null;
@@ -908,6 +934,7 @@ async function prefetchNext(){
   try { src = await memorySource(m); } catch (e) { plogAdd('getting next song ready failed: ' + (e && e.message)); return; }
   if (peekNextId() !== id || nextPre){ if (src.own) URL.revokeObjectURL(src.url); return; }
   nextPre = Object.assign({ id }, src); plogAdd(`next song ready: "${m.title.slice(0, 24)}" (${fmtSize(src.bytes || 0)} in memory)`);
+  if (!priming){ spare.src = src.url; spare.load(); } // the waiting player starts loading it now
 }
 // Read the next song's audio into memory now, while the app is active. A stored file is otherwise only read
 // when it starts playing, and a phone in the background may not allow that read until the app is reopened.
@@ -922,13 +949,20 @@ async function memorySource(m){
   return { url: URL.createObjectURL(new Blob([buf], { type: blob.type || m.type })), own: true, bytes: buf.byteLength };
 }
 function applySource(m, src, autoplay, at){
+  const swap = autoplay && !at && spare.src === src.url;
+  earlyDone = false;
+  if (swap){
+    const old = audio; audio = spare; spare = old;
+    old.pause(); old.removeAttribute('src'); try { old.load(); } catch (e) {}
+    plogAdd('switched to the waiting player');
+  }
   if (currentUrl) URL.revokeObjectURL(currentUrl);
   currentUrl = src.own ? src.url : null;
   currentId = m.id; pendingSeek = at;
-  audio.src = src.url;
+  if (swap){ if (audio.currentTime) audio.currentTime = 0; } else audio.src = src.url;
   // Start the next song before anything else: a minimized phone only allows a quick hand-off between songs
   if (autoplay){ const p = audio.play(); plogAdd(`play() called (${m.type || '?'})`); if (p) p.then(() => plogAdd('play() started'), e => { plogAdd(`play() refused: ${e && e.name}`); playErr(e, m); }); }
-  setMeta(m); savePos(); prefetchNext();
+  setMeta(m); savePos(); prefetchNext(); if (swap) mediaPos();
   // Screen updates wait until the app is visible again
   if (document.visibilityState === 'hidden'){ uiStale = true; return; }
   updateNow(); markCurrent(); lyTrackChanged(m);
@@ -946,11 +980,17 @@ async function load(id, { autoplay = true, at = 0 } = {}){
   if (!src){ toast(`Couldn't load "${m.title}". Check your connection and try again.`); return; }
   applySource(m, src, autoplay, at);
 }
+function canStartNextEarly(){
+  if (sync || quick || (sleep && sleep.mode === 'track') || repeat === 'one') return false;
+  return !!(nextPre && nextPre.id === peekNextId() && spare.src === nextPre.url);
+}
 function playFromList(id){
+  primeSpare();
   if (id === currentId){ togglePlay(); return; }
   buildQueue(id); load(id);
 }
 function togglePlay(){
+  primeSpare();
   if (!currentId){
     const v = visible(); if (!v.length) return;
     const start = shuffle ? v[Math.floor(Math.random() * v.length)].id : v[0].id;
@@ -980,7 +1020,7 @@ function stopCurrent(){
   currentUrl = null; currentId = null; queue = []; qi = -1; ls.set('cap.last', null);
 }
 
-audio.addEventListener('loadedmetadata', () => {
+onAudio('loadedmetadata', () => {
   if (pendingSeek){ try { audio.currentTime = pendingSeek; } catch (e) {} pendingSeek = 0; }
   const m = cur();
   if (m && !m.duration && isFinite(audio.duration) && audio.duration > 0){
@@ -988,24 +1028,27 @@ audio.addEventListener('loadedmetadata', () => {
   }
   updateTime(); mediaPos();
 });
-audio.addEventListener('play', updateNow);
-audio.addEventListener('pause', () => { updateNow(); savePos(); });
-audio.addEventListener('timeupdate', () => {
+onAudio('play', updateNow);
+onAudio('pause', () => { updateNow(); savePos(); });
+onAudio('timeupdate', () => {
   // Battery: skip screen updates nobody can see, and save the position every 15 s instead of every 5 s
   if (document.visibilityState !== 'hidden') updateTime();
   checkSleep();
+  if (!earlyDone && !audio.paused && isFinite(audio.duration) && audio.duration > 2 && audio.duration - audio.currentTime < 0.35 && canStartNextEarly()){
+    earlyDone = true; plogAdd('starting the next song a moment early'); step(1, true);
+  }
   const now = Date.now(); if (now - lastSave > 15000){ lastSave = now; savePos(); }
 });
 // The lock screen moves its own progress bar, so it only needs the position when something changes
-['play', 'pause', 'seeked', 'ratechange', 'loadedmetadata'].forEach(ev => audio.addEventListener(ev, mediaPos));
-audio.addEventListener('ended', () => {
+['play', 'pause', 'seeked', 'ratechange', 'loadedmetadata'].forEach(ev => onAudio(ev, mediaPos));
+onAudio('ended', () => {
   plogAdd(`song ended after ${fmt(audio.duration || 0)}`);
   if (sync || quick){ audio.pause(); return; } // syncing lyrics: stay on this song
   if (sleep && sleep.mode === 'track'){ sleep = null; updateSleep(); audio.currentTime = 0; updateNow(); toast('Sleep timer stopped playback.'); return; }
   if (repeat === 'one'){ audio.currentTime = 0; audio.play().catch(() => {}); }
   else step(1, true);
 });
-audio.addEventListener('error', () => { if (currentId && audio.src) toast(`Couldn't play "${cur() ? cur().title : 'this track'}".`); });
+onAudio('error', () => { if (currentId && audio.src) toast(`Couldn't play "${cur() ? cur().title : 'this track'}".`); });
 
 // Lock screen and headphone controls, where the browser supports them
 const ms = 'mediaSession' in navigator ? navigator.mediaSession : null;
@@ -1067,7 +1110,7 @@ function syncUiTimer(){
   }, 1000);
   else if (!need && uiTimer){ clearInterval(uiTimer); uiTimer = 0; }
 }
-['play', 'pause', 'ended'].forEach(ev => audio.addEventListener(ev, syncUiTimer));
+['play', 'pause', 'ended'].forEach(ev => onAudio(ev, syncUiTimer));
 E.search.addEventListener('input', () => { query = E.search.value; renderList(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') savePos();
@@ -1779,8 +1822,8 @@ function lyFrame(){
 let lyTimer = 0;
 function lyLoop(){ lyRAF = 0; lyFrame(); if (lyOpenFlag && !audio.paused && document.visibilityState !== 'hidden') lyTimer = setTimeout(() => { lyTimer = 0; lyRAF = requestAnimationFrame(lyLoop); }, 45); }
 function kickLyrics(){ if (!lyOpenFlag) return; lyFrame(); if (!lyRAF && !lyTimer && !audio.paused) lyRAF = requestAnimationFrame(lyLoop); }
-audio.addEventListener('play', kickLyrics);
-audio.addEventListener('seeked', () => { lyIdx = -1; kickLyrics(); });
+onAudio('play', kickLyrics);
+onAudio('seeked', () => { lyIdx = -1; kickLyrics(); });
 ['wheel', 'touchmove'].forEach(ev => LY.body.addEventListener(ev, () => { lyUserScroll = Date.now(); }, { passive: true }));
 
 function placeLyrics(){ LY.panel.style.bottom = (E.now.hidden ? 0 : E.now.offsetHeight) + 'px'; }
@@ -2204,11 +2247,11 @@ function plogAdd(msg){
   if (plog.length > 120) plog = plog.slice(-120);
   ls.set('cap.plog', plog);
 }
-audio.addEventListener('playing', () => plogAdd('playing'));
-audio.addEventListener('pause', () => plogAdd('paused'));
-audio.addEventListener('waiting', () => plogAdd('waiting for data'));
-audio.addEventListener('stalled', () => plogAdd('stalled'));
-audio.addEventListener('error', () => plogAdd('media error ' + (audio.error ? audio.error.code : '?')));
+onAudio('playing', () => plogAdd('playing'));
+onAudio('pause', () => plogAdd('paused'));
+onAudio('waiting', () => plogAdd('waiting for data'));
+onAudio('stalled', () => plogAdd('stalled'));
+onAudio('error', () => plogAdd('media error ' + (audio.error ? audio.error.code : '?')));
 document.addEventListener('visibilitychange', () => plogAdd(document.visibilityState === 'hidden' ? 'app hidden' : 'app visible'));
 const LG = { btn: $('#logBtn'), dlg: $('#logDlg'), text: $('#logText'), clear: $('#logClear'), copy: $('#logCopy'), close: $('#logClose') };
 LG.btn.addEventListener('click', () => { LG.text.textContent = plog.length ? plog.join('\n') : 'Nothing logged yet.'; LG.dlg.showModal(); LG.text.scrollTop = LG.text.scrollHeight; });
