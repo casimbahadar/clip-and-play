@@ -290,7 +290,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.15</p>
+      <p class="ver">Clip &amp; Play v1.2.16</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -749,6 +749,33 @@ const SILENT_URL = (() => {
   return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
 })();
 let spareUnlocked = false, priming = false, earlyDone = false;
+// Stop the old player only once the new one is actually playing (or after 0.7 s), and clear it a little later,
+// so the next song starts straight away instead of waiting for the old one to be torn down
+function retire(old){
+  let done = false;
+  const stop = () => {
+    if (done) return; done = true; audio.removeEventListener('playing', stop);
+    if (old === audio) return;
+    old.pause();
+    setTimeout(() => {
+      if (old === audio || (nextPre && old.src === nextPre.url) || old.src === SILENT_URL) return; // now holds the song after next
+      old.removeAttribute('src'); try { old.load(); } catch (e) {}
+    }, 1500);
+  };
+  audio.addEventListener('playing', stop); setTimeout(stop, 700);
+}
+// If the phone ever starts the waiting player by itself, follow it, so the screen, queue and lock screen
+// match what's actually playing
+players.forEach(p => p.addEventListener('playing', () => {
+  if (p === audio || p.src === SILENT_URL) return;
+  if (p === spare && nextPre && p.src === nextPre.url && peekNextId() === nextPre.id){
+    plogAdd('the waiting player started by itself; following it');
+    step(1, true);
+  } else {
+    plogAdd('a stray player started by itself; stopping it');
+    p.pause();
+  }
+}));
 function primeSpare(){
   if (spareUnlocked) return; spareUnlocked = true; priming = true;
   const p0 = spare; p0.src = SILENT_URL;
@@ -953,7 +980,7 @@ function applySource(m, src, autoplay, at){
   earlyDone = false;
   if (swap){
     const old = audio; audio = spare; spare = old;
-    old.pause(); old.removeAttribute('src'); try { old.load(); } catch (e) {}
+    retire(old);
     plogAdd('switched to the waiting player');
   }
   if (currentUrl) URL.revokeObjectURL(currentUrl);
