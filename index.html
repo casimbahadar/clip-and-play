@@ -224,6 +224,8 @@ dialog:focus-visible{outline:none}
 @media (prefers-reduced-motion:reduce){.lyp{transition:none}}
 .plog{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:12px;margin:12px 0 0;font:13px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:50vh;overflow-y:auto}
 .ly-callout{margin-top:12px!important;padding:12px 14px;border-radius:var(--r-s);background:var(--accent-soft);color:var(--ink)!important}
+.steps{margin:12px 0 0;padding-left:22px;color:var(--muted)}
+.steps li{margin:6px 0}
 .toast{position:fixed;left:var(--gut);right:var(--gut);bottom:calc(24px + env(safe-area-inset-bottom,0px));margin:0 auto;max-width:480px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:var(--r-m);font-size:15px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;z-index:20}
 body.has-bar .toast{bottom:calc(var(--bar-h) + env(safe-area-inset-bottom,0px) + 12px)}
 .toast.show{opacity:1;transform:none}
@@ -286,7 +288,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.11</p>
+      <p class="ver">Clip &amp; Play v1.2.12</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -510,6 +512,20 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
       <button type="button" class="btn btn-quiet" id="logCopy">Copy</button>
       <button type="button" class="btn btn-primary" id="logClose">Done</button>
     </div>
+  </div>
+</dialog>
+<dialog id="lyPcDlg" aria-labelledby="lyPcH">
+  <div class="sheet">
+    <h2 id="lyPcH">Auto-sync with AI needs a computer</h2>
+    <p>The speech AI needs more memory than phones give a web app, so on a phone the app closes partway through. It works on a computer:</p>
+    <ol class="steps">
+      <li>Open Clip &amp; Play on a computer and add the same song.</li>
+      <li>Paste or import its lyrics, then choose Auto-sync with AI from the lyrics menu.</li>
+      <li>Choose Save as a .lrc file, and move that file to your phone, for example with AirDrop, email or iCloud Drive.</li>
+      <li>On your phone, open this song's lyrics and choose Import a .lrc file.</li>
+    </ol>
+    <p class="hint">Or use <strong>Rough sync from the sound</strong> right here. It's quick and needs no AI, but its timing is an estimate, so expect to fix some lines.</p>
+    <div class="actions"><button type="button" class="btn btn-primary" id="lyPcClose">Got it</button></div>
   </div>
 </dialog>
 <datalist id="cols"></datalist>
@@ -1820,7 +1836,10 @@ function openLyOptions(){
   const L = curLyrics(), timed = isTimed(L); lyRemoveArmed = false; LY.dlgMsg.textContent = '';
   const opts = [];
   if (L) opts.push(lyButton(timed ? 'Sync again by tapping along' : 'Sync lyrics by tapping along', 'btn-quiet', () => { LY.dlg.close(); startSync(); }));
-  if (L && autoSyncAvailable()) opts.push(lyButton('Auto-sync from the audio (beta)', 'btn-quiet', () => { LY.dlg.close(); LY.asDlg.showModal(); }));
+  const phone = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  if (L && autoSyncAvailable() && !phone) opts.push(lyButton('Auto-sync with AI (beta)', 'btn-quiet', () => { LY.dlg.close(); LY.asDlg.showModal(); }));
+  if (L && autoSyncAvailable() && phone) opts.push(lyButton('Auto-sync with AI (needs a computer)', 'btn-quiet', () => { LY.dlg.close(); PC.dlg.showModal(); }));
+  if (L) opts.push(lyButton('Rough sync from the sound (no AI)', 'btn-quiet', () => { LY.dlg.close(); runRoughSync(); }));
   if (timed) opts.push(lyButton("Fix a line's timing", 'btn-quiet', () => { LY.dlg.close(); startFix(); }));
   opts.push(lyButton(`Style: ${LY_STYLES[styleOf(cur())].name}`, 'btn-quiet', () => { LY.dlg.close(); openStylePicker(); }));
   opts.push(lyButton(L ? 'Edit lyrics' : 'Paste lyrics', 'btn-quiet', openLyEditor));
@@ -2172,6 +2191,121 @@ LG.clear.addEventListener('click', () => { plog = []; ls.set('cap.plog', plog); 
 LG.copy.addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(plog.join('\n')); toast('Log copied.'); } catch (e) { toast('Copying is blocked here. Take a screenshot instead.'); }
 });
+
+
+// ---------- rough sync: no AI, just the sound ----------
+// Finds stretches where something voice-like is happening (energy in the main vocal range, compared to the
+// whole mix), then spreads the lines across those stretches by word count, snapping each line to the start of
+// a nearby stretch, since lines usually begin after a breath. Light enough for any phone. Every line is marked
+// estimated, so Fix a line's timing shows them all.
+const PC = { dlg: $('#lyPcDlg'), close: $('#lyPcClose') };
+PC.close.addEventListener('click', () => PC.dlg.close());
+async function songBlob(m){
+  if (typeof local.blob === 'function' && mode === 'local'){ const b = await local.blob(m); if (b) return b; }
+  const src = await store.source(m);
+  try { return await (await fetch(src.url)).blob(); } finally { if (src.own) URL.revokeObjectURL(src.url); }
+}
+function otsu(a){
+  let lo = Infinity, hi = -Infinity; for (const v of a){ if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (!(hi > lo)) return hi;
+  const B = 64, h = new Array(B).fill(0); for (const v of a) h[Math.min(B - 1, Math.floor((v - lo) / (hi - lo) * B))]++;
+  let sum = 0; for (let i = 0; i < B; i++) sum += i * h[i];
+  let wB = 0, sB = 0, best = 0, th = 0;
+  for (let i = 0; i < B; i++){
+    wB += h[i]; if (!wB) continue; const wF = a.length - wB; if (!wF) break;
+    sB += i * h[i]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) * (mB - mF);
+    if (v > best){ best = v; th = i; }
+  }
+  return lo + (th + 0.5) / B * (hi - lo);
+}
+async function vocalStretches(pcm){
+  const RATE = 16000, HOP = 800; // 50 ms steps
+  let band = pcm;
+  try {
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const off = new OAC(1, pcm.length, RATE), buf = off.createBuffer(1, pcm.length, RATE);
+    buf.copyToChannel(pcm, 0);
+    const src = off.createBufferSource(); src.buffer = buf;
+    const bp = off.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 0.7;
+    src.connect(bp); bp.connect(off.destination); src.start();
+    band = (await off.startRendering()).getChannelData(0);
+  } catch (e) {}
+  const n = Math.floor(pcm.length / HOP), bandRms = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    let eb = 0; for (let k = i * HOP, e = k + HOP; k < e; k++) eb += band[k] * band[k];
+    bandRms[i] = Math.sqrt(eb / HOP);
+  }
+  // Steady sounds (pads, held chords) sit at a constant level; singing rises above it. Estimate the steady
+  // floor as the quietest level within 2 s either side, and score only what rises above that floor.
+  const W2 = 40, score = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    let fl = Infinity; for (let j = Math.max(0, i - W2); j <= Math.min(n - 1, i + W2); j++) if (bandRms[j] < fl) fl = bandRms[j];
+    score[i] = Math.max(0, bandRms[i] - fl);
+  }
+  const sm = new Float32Array(n);
+  for (let i = 0; i < n; i++){ let s = 0, c = 0; for (let j = i - 3; j <= i + 3; j++) if (j >= 0 && j < n){ s += score[j]; c++; } sm[i] = s / c; }
+  const th = otsu(sm), segs = [];
+  let start = -1;
+  for (let i = 0; i <= n; i++){
+    const on = i < n && sm[i] > th;
+    if (on && start < 0) start = i;
+    if (!on && start >= 0){ segs.push({ s: start * HOP / RATE, e: i * HOP / RATE }); start = -1; }
+  }
+  const merged = [];
+  // Short gaps are between syllables; a line break is a longer pause (a breath)
+  for (const g of segs){ const last = merged[merged.length - 1]; if (last && g.s - last.e < 0.6) last.e = g.e; else merged.push({ ...g }); }
+  return merged.filter(g => g.e - g.s >= 0.5);
+}
+function roughPlace(lines, segs, dur){
+  const W = lines.map(l => Math.max(1, tokensOf({ x: l.x }).toks.length)), total = W.reduce((a, b) => a + b, 0);
+  if (!segs.length) segs = [{ s: Math.min(2, dur * 0.05), e: dur }];
+  const V = segs.reduce((a, g) => a + (g.e - g.s), 0);
+  const toReal = v => { for (const g of segs){ const d = g.e - g.s; if (v <= d) return g.s + v; v -= d; } return segs[segs.length - 1].e; };
+  // First guess for each line: spread by word count across the singing time
+  let acc = 0; const est = W.map(w => { const t = toReal(V * acc / total); acc += w; return t; });
+  // Then match lines to phrase starts in order (each phrase used once), so one miss doesn't shift every later
+  // line. A line may stay on its first guess, at a cost, when no phrase start fits it.
+  const P = segs.map(g => g.s), nL = lines.length, nP = P.length, SKIP = 4;
+  const INF = 1e18, dp = [], from = [];
+  for (let i = 0; i <= nL; i++){ dp.push(new Float64Array(nP + 1).fill(INF)); from.push(new Int32Array(nP + 1).fill(-1)); }
+  for (let j = 0; j <= nP; j++) dp[0][j] = 0;
+  for (let i = 1; i <= nL; i++){
+    for (let j = 0; j <= nP; j++){
+      // line i stays on its guess; phrases used so far stay at j
+      if (dp[i - 1][j] + SKIP < dp[i][j]){ dp[i][j] = dp[i - 1][j] + SKIP; from[i][j] = -2; }
+      // line i takes phrase j (1-based), coming from any earlier phrase count k < j
+      if (j >= 1){
+        let bestK = -1, bestV = INF;
+        for (let k = 0; k < j; k++) if (dp[i - 1][k] < bestV){ bestV = dp[i - 1][k]; bestK = k; }
+        const v = bestV + Math.abs(P[j - 1] - est[i - 1]);
+        if (v < dp[i][j]){ dp[i][j] = v; from[i][j] = bestK; }
+      }
+    }
+  }
+  let j = 0; for (let k = 1; k <= nP; k++) if (dp[nL][k] < dp[nL][j]) j = k;
+  const t = new Array(nL);
+  for (let i = nL; i >= 1; i--){
+    const f = from[i][j];
+    if (f === -2){ t[i - 1] = est[i - 1]; } else { t[i - 1] = P[j - 1]; j = f; }
+  }
+  let prev = -1;
+  return lines.map((l, i) => { const v = Math.max(t[i], prev + 0.4); prev = v; return { t: Math.round(v * 100) / 100, x: l.x, e: 1 }; });
+}
+async function runRoughSync(){
+  const m = cur(), L = curLyrics(); if (!m || !L || auto) return;
+  auto = { trackId: m.id, stage: 'Analyzing the sound', t0: Date.now(), id: ++asSeq, rough: true };
+  auto.timer = setInterval(updateAutoUI, 1000); renderLyrics(); updateAutoUI();
+  plogAdd('rough sync started');
+  try {
+    const pcm = await to16k(await songBlob(m));
+    if (!auto || auto.trackId !== m.id) return;
+    const segs = await vocalStretches(pcm);
+    const lines = roughPlace(L.lines, segs, pcm.length / 16000);
+    endAuto();
+    await saveLyrics(m, { lines });
+    toast(`Rough sync placed all ${lines.length} lines. The timing is an estimate, so use Fix a line's timing to correct any that are off.`);
+  } catch (e) { endAuto(); toast("Rough sync couldn't read this song's audio."); }
+}
 
 // ---------- start ----------
 (async function init(){
