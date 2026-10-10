@@ -223,6 +223,7 @@ dialog:focus-visible{outline:none}
 .field.ta{min-height:260px;padding:12px;font:16px/1.5 var(--font);resize:vertical;display:block}
 @media (prefers-reduced-motion:reduce){.lyp{transition:none}}
 .plog{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:12px;margin:12px 0 0;font:13px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:50vh;overflow-y:auto}
+.ly-callout{margin-top:12px!important;padding:12px 14px;border-radius:var(--r-s);background:var(--accent-soft);color:var(--ink)!important}
 .toast{position:fixed;left:var(--gut);right:var(--gut);bottom:calc(24px + env(safe-area-inset-bottom,0px));margin:0 auto;max-width:480px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:var(--r-m);font-size:15px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;z-index:20}
 body.has-bar .toast{bottom:calc(var(--bar-h) + env(safe-area-inset-bottom,0px) + 12px)}
 .toast.show{opacity:1;transform:none}
@@ -285,7 +286,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.9</p>
+      <p class="ver">Clip &amp; Play v1.2.11</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -490,7 +491,8 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
 <dialog id="lyAsDlg" aria-labelledby="lyAsH">
   <div class="sheet">
     <h2 id="lyAsH">Auto-sync from the audio</h2>
-    <p>A speech AI listens to this song on your device and matches what it hears to your lyrics. Your music isn't uploaded anywhere.</p>
+    <p>A speech AI reads this song's audio file on your device and matches the words in it to your lyrics. Your music isn't uploaded anywhere.</p>
+    <p class="ly-callout"><strong>The song doesn't need to play.</strong> The AI reads the file directly, not through your speakers, so you can pause the music or play something else while it works. On a phone, pausing is best: it leaves more memory for the AI.</p>
     <p class="hint">The first time, it downloads the AI (about 80 MB, one time only) from Hugging Face and its engine from jsDelivr, then keeps them in this browser. Each song can take a few minutes. Some lines may need fixing afterward, especially in songs that mix languages.</p>
     <div class="actions">
       <button type="button" class="btn btn-quiet" id="lyAsCancel">Not now</button>
@@ -1682,7 +1684,7 @@ function renderLyrics(){
     LY.body.append(box); return;
   }
   const timed = !sync && isTimed(L);
-  if (!timed && !sync){
+  if (!timed && !sync && !autoHere){ // hidden during auto-sync so the two kinds of syncing aren't mixed up
     const n = document.createElement('p'); n.className = 'ly-note'; n.textContent = "These lyrics aren't timed yet. Sync them by tapping along once while the song plays.";
     const b = lyButton('Sync lyrics', 'btn-primary ly-sync-start', startSync);
     LY.body.append(n, b);
@@ -2009,7 +2011,7 @@ async function to16k(blob){
 }
 function updateAutoUI(){
   if (!auto) return;
-  LY.autoInfo.textContent = `${auto.stage}. ${fmt((Date.now() - auto.t0) / 1000)} so far. Keep this screen open; it can take a few minutes.`;
+  LY.autoInfo.textContent = `${auto.stage}. ${fmt((Date.now() - auto.t0) / 1000)} so far. The song doesn't need to play while this works, but keep this screen open.`;
 }
 function endAuto(){
   ls.set('cap.asRun', null);
@@ -2038,7 +2040,7 @@ async function runAutoSync(){
   asWorker.onmessage = async e => {
     const d = e.data || {}; if (!auto || d.id !== id) return;
     if (d.type === 'progress'){ auto.stage = d.total ? `Loading the speech AI: ${fmtSize(d.loaded)} of ${fmtSize(d.total)} (downloaded only the first time)` : 'Loading the speech AI'; updateAutoUI(); }
-    else if (d.type === 'listening'){ auto.stage = 'Listening to the song'; updateAutoUI(); }
+    else if (d.type === 'listening'){ auto.stage = d.total ? `Reading the song's audio: ${fmt(d.done)} of ${fmt(d.total)}` : "Reading the song's audio"; updateAutoUI(); }
     else if (d.type === 'error'){ endAuto(); toast('Auto-sync stopped: ' + String(d.message || 'unknown error').slice(0, 140)); }
     else if (d.type === 'done'){
       const trackId = auto.trackId; endAuto();
@@ -2050,7 +2052,10 @@ async function runAutoSync(){
       toast(`Auto-sync timed ${res.matched} of ${res.lines.length} lines from the audio.` + (est ? ` ${est} ${est === 1 ? 'was' : 'were'} estimated; use Fix a line's timing to check ${est === 1 ? 'it' : 'them'}.` : ''));
     }
   };
-  asWorker.postMessage({ id, audio: pcm }, [pcm.buffer]);
+  // Phones and tablets get the lighter phrase-level listening; computers get word-by-word timing
+  const light = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  plogAdd(`auto-sync listening (${light ? 'phrase timing, phone' : 'word timing, computer'})`);
+  asWorker.postMessage({ id, audio: pcm, light }, [pcm.buffer]);
 }
 LY.asCancel.addEventListener('click', () => LY.asDlg.close());
 LY.asGo.addEventListener('click', () => { LY.asDlg.close(); runAutoSync(); });

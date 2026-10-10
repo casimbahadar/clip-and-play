@@ -27,12 +27,23 @@ async function load(id){
 }
 
 self.onmessage = async e => {
-  const { id, audio } = e.data || {};
+  const { id, audio, light } = e.data || {};
   try {
     if (!asr) asr = await load(id);
-    postMessage({ id, type: 'listening' });
-    const out = await asr(audio, { return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5 });
-    const words = (out && out.chunks || []).map(c => ({ w: c.text, s: c.timestamp && c.timestamp[0], e: c.timestamp && c.timestamp[1] }));
+    // Listen in 30-second pieces, one at a time, so the AI's working memory is released after each piece
+    // instead of building up over the whole song. On phones ("light"), ask for phrase timing instead of
+    // word timing: word timing keeps much more data in memory while it works.
+    const RATE = 16000, PIECE = 30 * RATE, total = audio.length / RATE, words = [];
+    for (let start = 0; start < audio.length; start += PIECE){
+      const offset = start / RATE;
+      postMessage({ id, type: 'listening', done: offset, total });
+      const out = await asr(audio.subarray(start, Math.min(audio.length, start + PIECE)), { return_timestamps: light ? true : 'word' });
+      for (const c of (out && out.chunks) || []){
+        const ts = c.timestamp || [];
+        if (typeof ts[0] !== 'number') continue;
+        words.push({ w: c.text, s: ts[0] + offset, e: typeof ts[1] === 'number' ? ts[1] + offset : undefined });
+      }
+    }
     postMessage({ id, type: 'done', words });
   } catch (err) {
     postMessage({ id, type: 'error', message: String((err && err.message) || err) });
