@@ -290,7 +290,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.17</p>
+      <p class="ver">Clip &amp; Play v1.2.18</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -1623,7 +1623,7 @@ E.restoreFile.addEventListener('change', async () => {
   }
   // A repaired song that's loaded or lined up next is reloaded from the fixed copy
   releasePre();
-  if (currentId && touched.has(currentId)) load(currentId, false);
+  if (currentId && touched.has(currentId)) load(currentId, { autoplay: false });
   render(); updateNow(); updateStorage(); if (added || repaired) requestPersist();
   plogAdd(`restore: ${added} added, ${repaired} repaired, ${skipped} already fine, ${damaged} damaged, ${unverified} not verified`);
   const parts = [];
