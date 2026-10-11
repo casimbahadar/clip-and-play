@@ -290,7 +290,7 @@ body.dragging::after{content:"Drop audio or video files to add them";position:fi
         <button type="button" class="btn btn-quiet" id="bkBtn">Back up library</button>
         <button type="button" class="btn btn-quiet" id="rsBtn">Restore</button>
       </div>
-      <p class="ver">Clip &amp; Play v1.2.16</p>
+      <p class="ver">Clip &amp; Play v1.2.17</p>
       <div class="bkrow"><button type="button" class="btn btn-quiet" id="logBtn">Playback log</button></div>
     </section>
   </main>
@@ -1503,13 +1503,15 @@ async function saveClips(){
 // File layout: "CLIPPLAY1 <header bytes>\n", a JSON header listing each track's offset and length, then the audio back to back.
 const BK_PART = 500 * 1024 * 1024;
 const enc = new TextEncoder(), dec = new TextDecoder();
+// A fingerprint of a song's bytes, so a restore can check every song arrived intact
+async function sha256(buf){ const h = await crypto.subtle.digest('SHA-256', buf); return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join(''); }
 function backupFile(items, i, n){
   let off = 0;
-  const list = items.map(({ meta, blob }) => {
-    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, order: typeof meta.order === 'number' ? meta.order : null, lyrics: meta.lyrics || null, lyStyle: meta.lyStyle || null, offset: off, length: blob.size };
+  const list = items.map(({ meta, blob, sha }) => {
+    const h = { id: meta.id, title: meta.title, collection: meta.collection || '', duration: meta.duration || 0, type: meta.type, added: meta.added || 0, order: typeof meta.order === 'number' ? meta.order : null, lyrics: meta.lyrics || null, lyStyle: meta.lyStyle || null, offset: off, length: blob.size, sha };
     off += blob.size; return h;
   });
-  const head = enc.encode(JSON.stringify({ app: 'clip-and-play', version: 1, part: i + 1, parts: n, created: new Date().toISOString(), tracks: list }));
+  const head = enc.encode(JSON.stringify({ app: 'clip-and-play', version: 2, part: i + 1, parts: n, created: new Date().toISOString(), tracks: list }));
   const date = new Date().toISOString().slice(0, 10);
   const name = n > 1 ? `clip-and-play-backup-${date}-part-${i + 1}-of-${n}.clipplay` : `clip-and-play-backup-${date}.clipplay`;
   return new File([enc.encode(`CLIPPLAY1 ${head.length}\n`), head, ...items.map(x => x.blob)], name, { type: 'application/octet-stream' });
@@ -1526,12 +1528,15 @@ async function saveFile(file){
 E.bkBtn.addEventListener('click', async () => {
   E.bkParts.replaceChildren(); E.bkProg.textContent = 'Preparing your backup';
   E.bk.showModal();
-  const groups = []; let cur = [], size = 0, missing = 0;
-  for (const meta of sorted()){
-    let blob = null; try { blob = await local.blob(meta); } catch (e) {}
+  const groups = []; let cur = [], size = 0, missing = 0, k = 0;
+  const all = sorted();
+  for (const meta of all){
+    E.bkProg.textContent = `Checking song ${++k} of ${all.length}`;
+    let blob = null, sha = null;
+    try { blob = await local.blob(meta); if (blob) sha = await sha256(await blob.arrayBuffer()); } catch (e) { blob = null; }
     if (!blob){ missing++; continue; }
     if (cur.length && size + blob.size > BK_PART){ groups.push(cur); cur = []; size = 0; }
-    cur.push({ meta, blob }); size += blob.size;
+    cur.push({ meta, blob, sha }); size += blob.size;
   }
   if (cur.length) groups.push(cur);
   if (!groups.length){ E.bkProg.textContent = "There's nothing to back up yet."; return; }
@@ -1565,8 +1570,19 @@ async function readBackup(file){
       duration: +t.duration || 0, size: t.length, type: String(t.type || 'audio/mpeg'), added: +t.added || Date.now(),
       order: typeof t.order === 'number' && isFinite(t.order) ? t.order : null, lyrics: sanitizeLyrics(t.lyrics) || undefined,
       lyStyle: typeof t.lyStyle === 'string' && /^[a-z]{1,20}$/.test(t.lyStyle) ? t.lyStyle : undefined },
-    blob: file.slice(base + t.offset, base + t.offset + t.length, String(t.type || 'audio/mpeg'))
+    blob: file.slice(base + t.offset, base + t.offset + t.length, String(t.type || 'audio/mpeg')),
+    sha: typeof t.sha === 'string' && /^[0-9a-f]{64}$/.test(t.sha) ? t.sha : null
   }));
+}
+// Does the stored audio for this track match these bytes? Compares the size and the start and end of the file.
+async function audioMatches(meta, buf){
+  let b = null; try { b = await local.blob(meta); } catch (e) {}
+  if (!b || b.size !== buf.byteLength) return false;
+  const K = 65536, n = buf.byteLength, a = new Uint8Array(buf);
+  const head = new Uint8Array(await b.slice(0, Math.min(K, n)).arrayBuffer()), tail = new Uint8Array(await b.slice(Math.max(0, n - K)).arrayBuffer());
+  for (let i = 0; i < head.length; i++) if (head[i] !== a[i]) return false;
+  for (let i = 0, o = Math.max(0, n - K); i < tail.length; i++) if (tail[i] !== a[o + i]) return false;
+  return true;
 }
 const pickRestore = () => { if (loaded) E.restoreFile.click(); };
 E.rsBtn.addEventListener('click', pickRestore);
@@ -1574,24 +1590,48 @@ E.emptyRestore.addEventListener('click', pickRestore);
 E.restoreFile.addEventListener('change', async () => {
   const files = [...E.restoreFile.files]; E.restoreFile.value = '';
   if (!files.length) return;
-  let added = 0, skipped = 0, bad = 0, quota = false;
-  const have = new Set(tracks.map(t => t.id));
+  let added = 0, skipped = 0, bad = 0, repaired = 0, damaged = 0, unverified = 0, quota = false;
+  const have = new Set(tracks.map(t => t.id)), touched = new Set();
   const keepOrder = !tracks.length; // into an empty library, keep the backup's order; otherwise add to the end
   outer: for (const f of files){
     let items;
     try { items = await readBackup(f); } catch (e) { bad++; continue; }
+    let k = 0;
     for (const it of items){
-      if (have.has(it.meta.id)){ skipped++; continue; }
-      toast(`Restoring ${added + 1} of ${items.length}`);
+      toast(`Restoring ${++k} of ${items.length}`);
+      // Copy the song's bytes out of the backup file before saving them. Saving a slice of the picked file
+      // directly can store the wrong audio on some phones.
+      let buf;
+      try { buf = await it.blob.arrayBuffer(); } catch (e) { damaged++; continue; }
+      if (it.sha && (await sha256(buf)) !== it.sha){ damaged++; continue; }
+      const blob = new Blob([buf], { type: it.meta.type });
+      if (have.has(it.meta.id)){
+        // Already here: keep it, unless its stored audio doesn't match the backup, in which case repair it
+        const existing = tracks.find(t => t.id === it.meta.id);
+        if (!existing || (await audioMatches(existing, buf))){ skipped++; continue; }
+        try { existing.size = buf.byteLength; await store.put(existing, { blob }); repaired++; touched.add(existing.id); }
+        catch (e) { if (isQuota(e)){ quota = true; break outer; } }
+        continue;
+      }
       if (!keepOrder || typeof it.meta.order !== 'number') it.meta.order = nextOrder();
-      try { await store.put(it.meta, { blob: it.blob }); tracks.push(it.meta); have.add(it.meta.id); added++; }
+      try {
+        await store.put(it.meta, { blob }); tracks.push(it.meta); have.add(it.meta.id); added++;
+        if (!(await audioMatches(it.meta, buf))) unverified++;
+      }
       catch (e) { if (isQuota(e)){ quota = true; break outer; } }
     }
   }
-  render(); updateNow(); updateStorage(); if (added) requestPersist();
+  // A repaired song that's loaded or lined up next is reloaded from the fixed copy
+  releasePre();
+  if (currentId && touched.has(currentId)) load(currentId, false);
+  render(); updateNow(); updateStorage(); if (added || repaired) requestPersist();
+  plogAdd(`restore: ${added} added, ${repaired} repaired, ${skipped} already fine, ${damaged} damaged, ${unverified} not verified`);
   const parts = [];
   if (added) parts.push(`Restored ${added} track${added === 1 ? '' : 's'}.`);
+  if (repaired) parts.push(`Repaired ${repaired} song${repaired === 1 ? '' : 's'} whose audio didn't match the backup.`);
   if (skipped) parts.push(`${skipped} already in your library.`);
+  if (damaged) parts.push(`${damaged} song${damaged === 1 ? ' in the backup is' : 's in the backup are'} damaged and ${damaged === 1 ? 'was' : 'were'} skipped.`);
+  if (unverified) parts.push(`${unverified} song${unverified === 1 ? '' : 's'} didn't save correctly. Try restoring again.`);
   if (bad) parts.push(`${bad === 1 ? "That file isn't" : `${bad} files aren't`} a Clip & Play backup.`);
   if (quota) parts.push('Storage is full, so the rest was not restored.');
   toast(parts.join(' ') || 'Nothing to restore.');

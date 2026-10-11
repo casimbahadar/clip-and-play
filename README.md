@@ -2,7 +2,9 @@
 
 Clip & Play is a music player and song cutter that runs in your browser. Add audio or video files from your phone or computer, cut the parts you want into their own tracks, and play them from a library that stays on your device.
 
-**Open it:** https://casimbahadar.github.io/clip-and-play/
+**Open it:** https://clip-and-play.casimbahadar.workers.dev
+
+(It's also at https://casimbahadar.github.io/clip-and-play/, but the address above is recommended. Each address keeps its own library.)
 
 Clip & Play doesn't download, stream or provide any music. It only works with files you add yourself, so use it with files you have the right to use.
 
